@@ -1,0 +1,292 @@
+import React, { useState } from 'react';
+import {
+  Home, BookOpen, Calendar, CalendarDays, MessageCircle, CircleUserRound,
+  X, FileText, NotebookPen, Target, BarChart3, Users,
+  Brain, Save, LogOut, GraduationCap, Bell, Heart, Zap,
+  ClipboardCheck, MoreHorizontal,
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { AUTH_NOTICE, logoutAndRedirect } from '../utils/authSession';
+import { useStudentDashboard } from './StudentDashboardContext';
+import ConfirmDialog from './ConfirmDialog';
+import { getStudentModuleNotificationCount } from '../utils/moduleNotificationUtils';
+
+/* ─── Sub-menu definitions ─────────────────────────────────────────────── */
+const subMenus = {
+  learn: {
+    title: 'Learn',
+    gradient: 'from-amber-500 to-orange-500',
+    items: [
+      { id: 'learning',                    name: 'Learning Hub',  icon: Brain,         color: 'bg-amber-500',  desc: 'Lessons & tutor' },
+      { id: 'assignments',                 name: 'Assignments',   icon: FileText,      color: 'bg-amber-600',  desc: 'Submit & track' },
+      { id: 'assignments-journal',         name: 'Journal',       icon: NotebookPen,   color: 'bg-amber-500',  desc: 'My notes' },
+      { id: 'assignments-academic-alcove', name: 'Class Wall',    icon: Target,        color: 'bg-amber-600',  desc: 'Deep focus' },
+      { id: 'results',                     name: 'Results',       icon: BarChart3,     color: 'bg-amber-500',  desc: 'Grades' },
+      { id: 'mastery',                     name: 'Mastery',       icon: Zap,           color: 'bg-amber-600',  desc: 'Topic strength' },
+      { id: 'error-analysis',              name: 'Error Analysis', icon: ClipboardCheck, color: 'bg-amber-500', desc: 'What to fix' },
+    ],
+  },
+  school: {
+    title: 'School',
+    gradient: 'from-amber-500 to-orange-500',
+    items: [
+      { id: 'routine',            name: 'Timetable',    icon: Calendar,     color: 'bg-amber-500', desc: 'Class schedule' },
+      { id: 'attendance',         name: 'Attendance',   icon: Users,        color: 'bg-amber-600', desc: 'Track presence' },
+      { id: 'exams',              name: 'Exams',        icon: FileText,     color: 'bg-amber-500', desc: 'Exam routine' },
+      { id: 'lesson-plan-status', name: 'Syllabus',     icon: BookOpen,     color: 'bg-amber-600', desc: 'Course status' },
+      { id: 'holidays',           name: 'Holidays',     icon: CalendarDays, color: 'bg-amber-500', desc: 'Holiday list' },
+      { id: 'noticeboard',        name: 'Notice Board', icon: Bell,         color: 'bg-amber-600', desc: 'Announcements' },
+    ],
+  },
+  more: {
+    title: 'More',
+    gradient: 'from-amber-500 to-orange-500',
+    items: [
+      { id: 'profile',       name: 'Profile',       icon: CircleUserRound, color: 'bg-amber-500', desc: 'Your account' },
+      { id: 'notifications', name: 'Notifications',  icon: Bell,            color: 'bg-amber-600', desc: 'Alerts' },
+      { id: 'teacherfeedback', name: 'Teacher Feedback', icon: BarChart3,   color: 'bg-amber-600', desc: 'For your teachers' },
+      { id: 'meetings',      name: 'Parent Meetings', icon: CalendarDays,   color: 'bg-amber-500', desc: 'PTM schedule' },
+      { id: 'excuse-letter', name: 'Excuse Letter',  icon: FileText,        color: 'bg-amber-600', desc: 'Request leave' },
+      { id: 'complaints',    name: 'Complaints',     icon: X,               color: 'bg-amber-500', desc: 'Raise an issue' },
+      { id: 'wellbeing',     name: 'Wellbeing',      icon: Heart,           color: 'bg-amber-600', desc: 'Check-in & health' },
+      { id: 'achievements',  name: 'Achievements',   icon: Target,          color: 'bg-amber-500', desc: 'Badges earned' },
+      { id: 'logout',        name: 'Logout',         icon: LogOut,          color: 'bg-red-500',   desc: 'Sign out', action: 'logout' },
+    ],
+  },
+};
+
+/* ─── Bottom-nav tab definitions (5 tabs — the rest live under "More") ──── */
+const navItems = [
+  { id: 'dashboard', label: 'Home',     icon: Home,          path: '/student' },
+  { id: 'learn',     label: 'Learn',    icon: GraduationCap, subMenu: 'learn' },
+  { id: 'school',    label: 'School',   icon: BookOpen,      subMenu: 'school' },
+  { id: 'chat',      label: 'Messages', icon: MessageCircle, path: '/student/chat' },
+  { id: 'more',      label: 'More',     icon: MoreHorizontal, subMenu: 'more' },
+];
+
+// Every view served by the Learning hub — legacy ids keep deep links alive.
+const LEARNING_HUB_VIEWS = [
+  'learning', 'smart-learning', 'smart-learning-courses',
+  'smart-learning-courses-reference', 'smart-learning-tutor',
+  'study-materials', 'practice-papers',
+];
+
+/* ─── Helper ─────────────────────────────────────────────────────────────── */
+const isViewInSubMenu = (menuKey, activeView) => {
+  if (menuKey === 'learn' && LEARNING_HUB_VIEWS.includes(activeView)) return true;
+  return subMenus[menuKey]?.items.some(
+    (item) => activeView === item.id || activeView.startsWith(`${item.id}-`)
+  ) ?? false;
+};
+
+/* ─── Component ─────────────────────────────────────────────────────────── */
+const MobileBottomNav = ({ activeView, onSaveJournal }) => {
+  const navigate = useNavigate();
+  const [openMenu, setOpenMenu] = useState(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  // Shared with Sidebar via StudentDashboardContext — see its comment for why
+  // this used to be a second independent poller.
+  const { unreadChatCount, notifications, moduleSeenState, chatSeenCount } = useStudentDashboard();
+  const getModuleCount = (moduleId) => getStudentModuleNotificationCount(notifications, moduleId, unreadChatCount, moduleSeenState, chatSeenCount);
+
+
+  const handleTabPress = (item) => {
+    if (item.subMenu) {
+      setOpenMenu((prev) => (prev === item.subMenu ? null : item.subMenu));
+    } else {
+      setOpenMenu(null);
+      navigate(item.path);
+    }
+  };
+
+  const handleCardPress = (child) => {
+    setOpenMenu(null);
+    if (child.action === 'logout') {
+      setShowLogoutConfirm(true);
+      return;
+    }
+    navigate(`/student/${child.id}`);
+  };
+
+  const currentMenu = openMenu ? subMenus[openMenu] : null;
+
+  return (
+    <>
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        onOpenChange={setShowLogoutConfirm}
+        onConfirm={() => logoutAndRedirect({ navigate, notice: AUTH_NOTICE.LOGGED_OUT })}
+        icon={LogOut}
+        title="Confirm logout"
+        description="Are you sure you want to log out? Any unsaved changes will be lost."
+        confirmLabel="Logout"
+      />
+
+      {/* ── Sub-menu overlay ─────────────────────────────────────────────── */}
+      {openMenu && currentMenu && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+            onClick={() => setOpenMenu(null)}
+          />
+
+          {/* Slide-up panel */}
+          <div className="fixed bottom-16 left-2 right-2 sm:left-auto sm:right-4 sm:w-96 z-50 lg:hidden bg-white rounded-3xl shadow-2xl overflow-hidden animate-slide-up-panel">
+            {/* Coloured header */}
+            <div className={`bg-linear-to-r ${currentMenu.gradient} px-5 py-3.5 flex items-center justify-between`}>
+              <span className="text-white font-bold text-base tracking-wide">
+                {currentMenu.title}
+              </span>
+              <button
+                onClick={() => setOpenMenu(null)}
+                className="w-7 h-7 rounded-full bg-white/25 flex items-center justify-center active:scale-90 transition-transform"
+              >
+                <X size={15} className="text-white" />
+              </button>
+            </div>
+
+            {/* App-icon card grid */}
+            <div className="p-4 sm:p-5 grid grid-cols-3 gap-3 sm:gap-4 max-h-[70vh] overflow-y-auto">
+              {currentMenu.items.map((item) => {
+                const Icon = item.icon;
+                const isActive =
+                  activeView === item.id || activeView.startsWith(`${item.id}-`);
+                const notificationCount = item.action === 'logout' ? 0 : getModuleCount(item.id);
+
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleCardPress(item)}
+                    className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all active:scale-90 ${
+                      isActive
+                        ? 'bg-amber-50 ring-2 ring-amber-400'
+                        : 'bg-gray-50 active:bg-gray-100'
+                    }`}
+                  >
+                    {/* iOS-style app icon */}
+                    <div
+                      className={`relative rounded-2xl ${item.color} flex items-center justify-center shadow-md w-13 h-13 sm:w-15 sm:h-15`}
+                    >
+                      <Icon size={24} className="text-white sm:w-7 sm:h-7" strokeWidth={1.8} />
+                      {notificationCount > 0 && (
+                        <span className="absolute -right-1.5 -top-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-none text-white shadow" title={`${notificationCount} unread item${notificationCount === 1 ? '' : 's'}`}>
+                          {notificationCount > 99 ? '99+' : notificationCount}
+                        </span>
+                      )}
+                    </div>
+
+                    <span
+                      className={`text-[11px] sm:text-xs font-semibold text-center leading-tight ${
+                        isActive ? 'text-amber-600' : 'text-gray-700'
+                      }`}
+                    >
+                      {item.name}
+                    </span>
+
+                    <span className="text-[9px] sm:text-[10px] text-gray-400 leading-none">
+                      {item.desc}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Bottom nav bar ───────────────────────────────────────────────── */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.07)]"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
+        {/* Special Journal Save Footer */}
+        {activeView === 'assignments-journal' && onSaveJournal ? (
+          <div className="flex items-center justify-between px-4 sm:px-6 h-16 sm:h-18 gap-3 sm:gap-4 max-w-2xl mx-auto">
+            <button
+              onClick={() => navigate('/student')}
+              className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg text-gray-500 hover:bg-gray-100 active:scale-90 transition-all"
+            >
+              <Home size={20} className="sm:w-6 sm:h-6" />
+            </button>
+            <button
+              onClick={onSaveJournal}
+              className="flex-1 flex items-center justify-center gap-2 h-11 sm:h-12 rounded-full text-white font-bold text-sm sm:text-base active:scale-95 transition-all shadow-lg"
+              style={{
+                background: '#3d5a45',
+                boxShadow: '0 4px 14px -3px rgba(61,90,69,0.45)',
+              }}
+            >
+              <Save size={18} className="sm:w-5 sm:h-5" />
+              Save Entry
+            </button>
+            <button
+              onClick={() => setOpenMenu('learn')}
+              className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg text-gray-500 hover:bg-gray-100 active:scale-90 transition-all"
+            >
+              <BookOpen size={20} className="sm:w-6 sm:h-6" />
+            </button>
+          </div>
+        ) : (
+          /* Default Navigation */
+          <div className="flex items-stretch h-16 sm:h-18 max-w-2xl mx-auto">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const notificationCount = item.subMenu
+                ? subMenus[item.subMenu].items.reduce((total, child) => total + getModuleCount(child.id), 0)
+                : getModuleCount(item.id);
+
+              const isActive = item.subMenu
+                ? openMenu === item.subMenu || isViewInSubMenu(item.subMenu, activeView)
+                : item.id === 'dashboard'
+                ? activeView === 'dashboard' || activeView === 'home'
+                : activeView === item.id;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleTabPress(item)}
+                  className="flex-1 flex flex-col items-center justify-center gap-1 active:scale-90 transition-transform min-w-0"
+                >
+                  <div
+                    className={`relative flex items-center justify-center p-1.5 sm:p-2 rounded-2xl transition-all duration-200 ${
+                      isActive
+                        ? '-translate-y-0.5 bg-linear-to-b from-amber-100 to-amber-50 shadow-sm shadow-amber-200/60'
+                        : 'translate-y-0'
+                    }`}
+                  >
+                    <Icon
+                      size={22}
+                      strokeWidth={isActive ? 2.3 : 1.75}
+                      className={`sm:w-6 sm:h-6 transition-colors ${isActive ? 'text-amber-600' : 'text-gray-400'}`}
+                    />
+                    {notificationCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-[18px] text-center shadow">
+                        {notificationCount > 99 ? '99+' : notificationCount}
+                      </span>
+                    )}
+                  </div>
+                  <span
+                    className={`text-[10px] sm:text-[11px] leading-none truncate transition-all ${
+                      isActive ? 'font-bold text-amber-600' : 'font-semibold text-gray-400'
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                  {/* <span
+                    className={`h-1 w-1 rounded-full bg-amber-500 transition-opacity duration-200 ${
+                      isActive ? 'opacity-100' : 'opacity-0'
+                    }`}
+                    aria-hidden="true"
+                  /> */}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </nav>
+    </>
+  );
+};
+
+export default MobileBottomNav;

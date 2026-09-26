@@ -1,0 +1,37 @@
+Teacher Features and Frontend Routes
+
+Overview
+- Dashboard: /teacher/dashboard
+- Profile & Work: /teacher/my-work-portal
+- Class Routine: /teacher/class-routine
+- Holiday List: /teacher/holidays
+
+Student Management
+- Attendance: /teacher/attendance
+- Achievements: /teacher/achievements
+- Student Analytics: /teacher/student-analytics (Aliases: /teacher/progress, /teacher/weak-students)
+- Student Health Updates: /teacher/health-updates
+- Student Observations: /teacher/student-observations
+
+Teaching Tools
+- Smart Teaching: /teacher/smart-teaching (Alias: /teacher/ai-powered-teaching)
+- Smart Teaching Lesson Planner: /teacher/smart-teaching/lesson-planner
+- Lesson Plan Builder: /teacher/lesson-plan (active-year classes are deduplicated; subjects merge the teacher's allocation and timetable records; demo fallback options are suppressed; uploaded PDF/DOCX/PPT files report AI-ready only after Qdrant ingestion succeeds with class, section, academic-year, subject, and chapter metadata)
+- Smart Teaching Lesson Planner Wizard: /teacher/smart-teaching/lesson-planner-wizard
+- Teaching Resources (Academic Alcove): /teacher/academic-alcove
+- AI Learning Path: /teacher/ai-learning/:studentId/:subject
+- Assignments: /teacher/assignments (Alias: /teacher/evaluation)
+- Practice Questions: /teacher/practice-questions
+- Class Notes: /teacher/class-notes
+
+Assessment
+- Result Management: /teacher/result-management (Aliases: /teacher/exams, /teacher/results)
+
+Communication
+- Chat: /teacher/chat
+- Parent Meetings: /teacher/parent-meetings
+- Excuse Letters: /teacher/excuse-letters
+- Student Feedback: /teacher/feedback
+
+Miscellaneous/Test
+- Test Portal: /teacher/test

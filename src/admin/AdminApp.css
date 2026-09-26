@@ -1,0 +1,57 @@
+.admin-app {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 250px;
+  background-color: #f28c38; /* Orange background like in the screenshot */
+  color: #fff;
+  padding: 20px 0;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-header {
+  padding: 10px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sidebar-header h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #fff;
+}
+
+.sidebar-nav {
+  margin-top: 20px;
+}
+
+.sidebar-nav a {
+  display: flex;
+  align-items: center;
+  padding: 15px 20px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 16px;
+  transition: background 0.3s;
+}
+
+.sidebar-nav a:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-nav a.active {
+  background-color: #8b5cf6; /* Purple background for active link like in the screenshot */
+  color: #fff;
+}
+
+.sidebar-nav .icon {
+  margin-right: 10px;
+  font-size: 20px;
+}
+
+.main-content {
+  flex: 1;
+  padding: 20px;
+  background-color: #f9fafb;
+}

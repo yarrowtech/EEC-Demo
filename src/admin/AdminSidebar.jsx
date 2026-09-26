@@ -1,0 +1,421 @@
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { ChevronRight, ChevronLeft, ChevronDown, LogOut, X } from 'lucide-react';
+import { ADMIN_MENU_ITEMS } from './adminConstants';
+import { NavLink, useLocation } from 'react-router-dom';
+
+// Spring the active pill slides with — shared by the top-level and submenu
+// highlights (each keeps its own layoutId so they never animate into each
+// other's very different sizes/positions).
+const ACTIVE_PILL_TRANSITION = { type: 'spring', stiffness: 400, damping: 32 };
+
+const badgeLabel = (count) => (count > 99 ? '99+' : String(count));
+
+const AdminSidebar = ({
+  onMenuItemClick,
+  collapsed = false,
+  onToggleSidebar,
+  menuItems = ADMIN_MENU_ITEMS,
+  adminUser,
+  profileLoading = false,
+  mobileOpen = false,
+  onMobileClose,
+  onLogoutRequest,
+  showAdminHeader = true,
+  getNotificationCount = () => 0,
+}) => {
+  const [expandedMenus, setExpandedMenus] = useState({});
+  const [skeletonTimedOut, setSkeletonTimedOut] = useState(false);
+  const location = useLocation();
+
+  // Close mobile sidebar on Escape key
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKeyDown = (e) => { if (e.key === 'Escape') onMobileClose?.(); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [mobileOpen, onMobileClose]);
+  useEffect(() => {
+    if (!profileLoading) {
+      setSkeletonTimedOut(false);
+      return undefined;
+    }
+    const timeout = setTimeout(() => setSkeletonTimedOut(true), 7000);
+    return () => clearTimeout(timeout);
+  }, [profileLoading]);
+
+  const brandLogoSrc = adminUser?.schoolLogo || adminUser?.avatar || '';
+  const schoolName   = adminUser?.schoolName || adminUser?.name || 'School Admin';
+  const campusLabel  = adminUser?.campusName
+    ? `${adminUser.campusName}${adminUser.campusType ? ` · ${adminUser.campusType}` : ''}`
+    : adminUser?.campusType || '';
+  const footerInitial = (adminUser?.name || 'A').charAt(0).toUpperCase();
+  const footerName    = adminUser?.name || 'Admin User';
+  const footerRole    = adminUser?.role || 'Administrator';
+  const showSkeleton = profileLoading && !skeletonTimedOut;
+  const currentPath = location.pathname.replace(/\/$/, '') || '/';
+
+  const isRouteActive = (path) => {
+    const normalizedPath = String(path || '').replace(/\/$/, '');
+    if (!normalizedPath) return false;
+    return currentPath === normalizedPath || currentPath.startsWith(`${normalizedPath}/`);
+  };
+
+  const toggleSubmenu = (label) => {
+    setExpandedMenus((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
+
+  return (
+    <>
+      {/* Mobile backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
+          onClick={onMobileClose}
+        />
+      )}
+
+      {/* Sidebar panel */}
+      <div
+        className={`
+          fixed lg:sticky inset-y-0 lg:inset-y-auto left-0
+          lg:top-0 lg:h-dvh
+          z-50 lg:z-40
+          flex flex-col h-dvh bg-white border-r border-gray-100 shadow-lg
+          transition-all duration-300 ease-in-out
+          ${collapsed ? 'w-[72px]' : 'w-64'}
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}
+      >
+        {/* ── Brand header ── */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 relative">
+          {/* Logo */}
+          <div className={`
+            shrink-0 rounded-xl overflow-hidden flex items-center justify-center
+            bg-linear-to-br from-yellow-500 to-amber-700 shadow-md shadow-indigo-200
+            transition-all duration-300
+            ${collapsed ? 'w-9 h-9' : 'w-10 h-10'}
+            ${showSkeleton ? 'animate-pulse bg-gray-200' : ''}
+          `}>
+            {!showSkeleton && (brandLogoSrc ? (
+              <img src={brandLogoSrc} alt={schoolName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-white font-black text-sm">
+                {schoolName.slice(0, 2).toUpperCase()}
+              </span>
+            ))}
+          </div>
+
+          {/* School name + campus — skeleton while loading */}
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              {showSkeleton ? (
+                <>
+                  <div className="h-3 w-28 bg-gray-200 rounded-full animate-pulse mb-1.5" />
+                  <div className="h-2.5 w-20 bg-gray-100 rounded-full animate-pulse" />
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-bold text-gray-900 truncate leading-tight">{schoolName}</p>
+                  {campusLabel && (
+                    <p className="text-[11px] text-indigo-500 font-medium truncate mt-0.5">{campusLabel}</p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Desktop collapse toggle */}
+          <button
+            onClick={onToggleSidebar}
+            className={`
+              hidden lg:flex shrink-0 items-center justify-center rounded-lg
+              transition-all duration-200 z-50
+              ${collapsed
+                ? 'w-5 h-5 right-3 bg-yellow-500 hover:bg-yellow-600 text-white shadow-md hover:shadow-lg rounded-full'
+                : 'w-7 h-7 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'}
+            `}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={15} />}
+          </button>
+
+          {/* Mobile close button */}
+          <button
+            onClick={onMobileClose}
+            className="lg:hidden w-7 h-7 shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+            aria-label="Close menu"
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* ── Navigation ── */}
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-0.5">
+          {menuItems.map((item, idx) => {
+            // Section header row
+            if (item.heading) {
+              if (collapsed) {
+                return <div key={`sec-${idx}`} className="my-2 mx-3 border-t border-gray-100" />;
+              }
+              return (
+                <p
+                  key={`sec-${idx}`}
+                  className="px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 select-none"
+                >
+                  {item.heading}
+                </p>
+              );
+            }
+
+            const Icon = item.icon;
+            const hasActiveSubroute = Boolean(item.hasSubmenu) && (
+              isRouteActive(item.path) || (item.submenu || []).some((sub) => isRouteActive(sub.path))
+            );
+            const isExpanded = expandedMenus[item.label] || hasActiveSubroute;
+            const itemKey = `${item.label}:${item.path || 'root'}`;
+            const submenuCounts = item.hasSubmenu
+              ? (item.submenu || []).map((sub) => getNotificationCount(sub.path))
+              : [];
+            const itemNotificationCount = item.hasSubmenu
+              ? submenuCounts.reduce((total, count) => total + count, 0)
+              : getNotificationCount(item.path);
+
+            return (
+              <div key={itemKey || idx}>
+                {item.hasSubmenu ? (
+                  <>
+                    <button
+                      onClick={() => toggleSubmenu(item.label)}
+                      title={collapsed ? item.label : undefined}
+                      className={`
+                        relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
+                        text-gray-500 hover:text-gray-900 hover:bg-gray-50
+                        transition-all duration-150 group
+                        ${collapsed ? 'justify-center' : ''}
+                        ${isExpanded && !collapsed ? 'text-gray-900 bg-gray-50' : ''}
+                      `}
+                    >
+                      <span className="relative shrink-0">
+                        <Icon
+                          size={18}
+                          className={`transition-colors ${isExpanded && !collapsed ? 'text-indigo-500' : 'text-gray-400 group-hover:text-indigo-500'}`}
+                        />
+                        {collapsed && itemNotificationCount > 0 && (
+                          <span
+                            data-testid={`admin-sidebar-notification-${item.label}`}
+                            className="absolute -right-1.5 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white"
+                          >
+                            {badgeLabel(itemNotificationCount)}
+                          </span>
+                        )}
+                      </span>
+                      {!collapsed && (
+                        <>
+                          <span className="flex-1 text-left text-sm font-semibold">{item.label}</span>
+                          {itemNotificationCount > 0 && (
+                            <span
+                              data-testid={`admin-sidebar-notification-${item.label}`}
+                              className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white"
+                            >
+                              {badgeLabel(itemNotificationCount)}
+                            </span>
+                          )}
+                          {isExpanded
+                            ? <ChevronDown size={14} className="text-indigo-400 shrink-0" />
+                            : <ChevronRight size={14} className="text-gray-300 group-hover:text-indigo-400 shrink-0 transition-colors" />}
+                        </>
+                      )}
+                    </button>
+
+                    {isExpanded && !collapsed && (
+                      <div className="mt-0.5 ml-4 pl-3 border-l-2 border-indigo-100 space-y-0.5">
+                        {item.submenu.map((sub, subIdx) => {
+                          const SubIcon = sub.icon;
+                          const subKey = `${sub.label}:${sub.path}`;
+                          const subCount = submenuCounts[subIdx] || 0;
+                          return (
+                            <NavLink
+                              key={subKey}
+                              to={sub.path}
+                              end
+                              onClick={() => { onMenuItemClick(sub.label); onMobileClose?.(); }}
+                            >
+                              {({ isActive }) => (
+                                <div className={`
+                                  relative flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors duration-150
+                                  ${isActive
+                                    ? 'text-yellow-700 font-semibold'
+                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'}
+                                `}>
+                                  {isActive && (
+                                    <motion.div
+                                      layoutId="admin-sidebar-active-subpill"
+                                      className="absolute inset-0 rounded-lg bg-yellow-50 shadow-sm"
+                                      transition={ACTIVE_PILL_TRANSITION}
+                                    />
+                                  )}
+                                  <SubIcon size={14} className={`relative z-10 shrink-0 ${isActive ? 'text-yellow-500' : 'text-gray-400'}`} />
+                                  <span className="relative z-10">{sub.label}</span>
+                                  {subCount > 0 && (
+                                    <span
+                                      data-testid={`admin-sidebar-notification-${sub.label}`}
+                                      className="relative z-10 ml-auto flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white"
+                                    >
+                                      {badgeLabel(subCount)}
+                                    </span>
+                                  )}
+                                  {isActive && subCount <= 0 && <span className="relative z-10 ml-auto w-1.5 h-1.5 rounded-full bg-yellow-500 shrink-0 animate-pulse" />}
+                                </div>
+                              )}
+                            </NavLink>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <NavLink
+                    to={item.path}
+                    onClick={() => { onMenuItemClick(item.label); onMobileClose?.(); }}
+                  >
+                    {({ isActive }) => (
+                      <div
+                        title={collapsed ? item.label : undefined}
+                        aria-label={collapsed ? item.label : undefined}
+                        className={`
+                          relative flex items-center gap-3 px-3 py-2.5 rounded-xl
+                          transition-colors duration-150 group
+                          ${collapsed ? 'justify-center' : ''}
+                          ${isActive
+                            ? 'text-yellow-700'
+                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}
+                        `}
+                      >
+                        {isActive && (
+                          <motion.div
+                            layoutId="admin-sidebar-active-pill"
+                            className="absolute inset-0 rounded-xl bg-yellow-50"
+                            transition={ACTIVE_PILL_TRANSITION}
+                          />
+                        )}
+                        <span className="relative z-10 shrink-0">
+                          <Icon
+                            size={22}
+                            className={`transition-colors p-1 ${isActive ? 'bg-yellow-500 rounded-full text-white' : 'bg-gray-100 rounded-full text-gray-400 group-hover:text-yellow-500'}`}
+                          />
+                          {collapsed && itemNotificationCount > 0 && (
+                            <span
+                              data-testid={`admin-sidebar-notification-${item.label}`}
+                              className="absolute -right-1.5 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white"
+                            >
+                              {badgeLabel(itemNotificationCount)}
+                            </span>
+                          )}
+                        </span>
+                        {!collapsed && (
+                          <span className={`relative z-10 flex-1 flex items-center gap-2 text-sm ${isActive ? 'font-bold' : 'font-semibold'}`}>
+                            {item.label}
+                            {itemNotificationCount > 0 && (
+                              <span className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                                {badgeLabel(itemNotificationCount)}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </NavLink>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* ── Footer ── */}
+        <div className="border-t border-gray-100 p-3 space-y-1">
+          {/* User row — skeleton while loading */}
+          <div className={`flex items-center gap-2.5 px-2 py-2 rounded-xl ${collapsed ? 'justify-center' : ''}`}>
+            <div className={`w-8 h-8 rounded-xl shrink-0 overflow-hidden flex items-center justify-center
+              ${showSkeleton ? 'bg-gray-200 animate-pulse' : 'bg-indigo-100'}`}>
+              {!showSkeleton && (brandLogoSrc ? (
+                <img src={brandLogoSrc} alt={footerName} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-indigo-600 font-bold text-sm">{footerInitial}</span>
+              ))}
+            </div>
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                {showSkeleton ? (
+                  <>
+                    <div className="h-2.5 w-24 bg-gray-200 rounded-full animate-pulse mb-1.5" />
+                    <div className="h-2 w-16 bg-gray-100 rounded-full animate-pulse" />
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-bold text-gray-900 truncate">{footerName}</p>
+                    <p className="text-[11px] text-gray-400 truncate">{footerRole}</p>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Logout */}
+          <button
+            onClick={onLogoutRequest}
+            title={collapsed ? 'Logout' : undefined}
+            aria-label="Logout"
+            className={`
+              w-full flex items-center gap-2.5 px-3 py-2 rounded-xl
+              text-gray-400 hover:text-red-600 hover:bg-red-50
+              transition-all duration-150 text-sm font-semibold
+              ${collapsed ? 'justify-center' : ''}
+            `}
+          >
+            <LogOut size={15} className="shrink-0" />
+            {!collapsed && <span>Logout</span>}
+          </button>
+        </div>
+      </div>
+
+      {/* Add animation styles */}
+      <style>{`
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateX(-8px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+          }
+        }
+
+        .animate-slideIn {
+          animation: slideIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Smooth scrollbar for navigation */
+        nav::-webkit-scrollbar {
+          width: 4px;
+        }
+
+        nav::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        nav::-webkit-scrollbar-thumb {
+          background: #e5e7eb;
+          border-radius: 4px;
+        }
+
+        nav::-webkit-scrollbar-thumb:hover {
+          background: #d1d5db;
+        }
+      `}</style>
+    </>
+  );
+};
+
+export default AdminSidebar;

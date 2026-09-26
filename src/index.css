@@ -1,0 +1,507 @@
+/*
+ * HeroUI Theme Customization
+ * @see https://heroui.com/docs/react/getting-started/theming
+ */
+
+:root,
+.light,
+.default,
+[data-theme="light"],
+[data-theme="default"] {
+  /* Base styles */
+  font-family: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Theme Colors (Light Mode) */
+  --accent: oklch(76.86% 0.1647 70.08);
+  --accent-foreground: oklch(21.03% 0.0500 75);
+  --background: oklch(97.02% 0.0015 253.83);
+  --border: oklch(90.00% 0.0015 253.83);
+  --danger: oklch(65.32% 0.2335 25.74);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(94.00% 0.0015 253.83);
+  --default-foreground: oklch(21.03% 0.0059 253.83);
+  --field-background: oklch(100.00% 0.0008 253.83);
+  --field-border: transparent;
+  --field-foreground: oklch(21.03% 0.0015 253.83);
+  --field-placeholder: oklch(55.17% 0.0030 253.83);
+  --focus: oklch(55.53% 0.1455 48.99);
+  --foreground: oklch(21.03% 0.0015 253.83);
+  --muted: oklch(55.17% 0.0030 253.83);
+  --overlay: oklch(100.00% 0.0004 253.83);
+  --overlay-foreground: oklch(21.03% 0.0015 253.83);
+  --scrollbar: oklch(87.10% 0.0015 253.83);
+  --segment: oklch(100.00% 0.0015 253.83);
+  --segment-foreground: oklch(21.03% 0.0015 253.83);
+  --separator: oklch(92.00% 0.0015 253.83);
+  --success: oklch(73.29% 0.1941 150.81);
+  --success-foreground: oklch(21.03% 0.0059 150.81);
+  --surface: oklch(100.00% 0.0008 253.83);
+  --surface-foreground: oklch(21.03% 0.0015 253.83);
+  --surface-secondary: oklch(95.24% 0.0012 253.83);
+  --surface-secondary-foreground: oklch(21.03% 0.0015 253.83);
+  --surface-tertiary: oklch(93.73% 0.0012 253.83);
+  --surface-tertiary-foreground: oklch(21.03% 0.0015 253.83);
+  --warning: oklch(78.19% 0.1590 72.33);
+  --warning-foreground: oklch(21.03% 0.0059 72.33);
+
+  /* Border Radius */
+  --radius: 0.5rem;
+  --field-radius: 0.75rem;
+
+  /* Font Family */
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* Light mode defaults */
+  color-scheme: light;
+  color: var(--foreground);
+  background-color: var(--background);
+}
+
+.dark,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Theme Colors (Dark Mode) */
+  --accent: oklch(76.86% 0.1647 70.08);
+  --accent-foreground: oklch(21.03% 0.0500 75);
+  --background: oklch(12.00% 0.0015 253.83);
+  --border: oklch(28.00% 0.0015 253.83);
+  --danger: oklch(59.40% 0.1973 24.63);
+  --danger-foreground: oklch(99.11% 0 0);
+  --default: oklch(27.40% 0.0015 253.83);
+  --default-foreground: oklch(99.11% 0 0);
+  --field-background: oklch(21.03% 0.0030 253.83);
+  --field-border: transparent;
+  --field-foreground: oklch(99.11% 0.0015 253.83);
+  --field-placeholder: oklch(70.50% 0.0030 253.83);
+  --focus: oklch(55.53% 0.1455 48.99);
+  --foreground: oklch(99.11% 0.0015 253.83);
+  --muted: oklch(70.50% 0.0030 253.83);
+  --overlay: oklch(21.03% 0.0030 253.83);
+  --overlay-foreground: oklch(99.11% 0.0015 253.83);
+  --scrollbar: oklch(70.50% 0.0015 253.83);
+  --segment: oklch(39.64% 0.0015 253.83);
+  --segment-foreground: oklch(99.11% 0.0015 253.83);
+  --separator: oklch(25.00% 0.0015 253.83);
+  --success: oklch(73.29% 0.1941 150.81);
+  --success-foreground: oklch(21.03% 0.0059 150.81);
+  --surface: oklch(21.03% 0.0030 253.83);
+  --surface-foreground: oklch(99.11% 0.0015 253.83);
+  --surface-secondary: oklch(25.70% 0.0023 253.83);
+  --surface-secondary-foreground: oklch(99.11% 0.0015 253.83);
+  --surface-tertiary: oklch(27.21% 0.0023 253.83);
+  --surface-tertiary-foreground: oklch(99.11% 0.0015 253.83);
+  --warning: oklch(82.03% 0.1392 76.34);
+  --warning-foreground: oklch(21.03% 0.0059 76.33);
+
+  color: var(--foreground);
+  background-color: var(--background);
+}
+
+input, select, textarea {
+  color: inherit;
+}
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+
+@keyframes slideUpPanel {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.animate-slide-up-panel {
+  animation: slideUpPanel 0.28s cubic-bezier(0.34, 1.1, 0.64, 1) both;
+}
+
+/* Modern white scrollbar for scrollable areas like sidebar */
+.custom-scrollbar {
+  scrollbar-width: thin;               /* Firefox */
+  scrollbar-color: rgba(255,255,255,0.9) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;                          /* Chrome/Safari/Edge */
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 9999px;
+  border: 2px solid rgba(255, 255, 255, 0.5); /* subtle ring for contrast */
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #ffffff;
+}
+
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #facc15 transparent; /* Firefox */
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #fcd34d, #f59e0b);
+  border-radius: 9999px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #fbbf24, #d97706);
+}
+
+/* Modern minimalistic scrollbar for sidebar navigation */
+.modern-scrollbar {
+  scrollbar-width: thin;               /* Firefox */
+  scrollbar-color: rgba(156, 163, 175, 0.6) transparent; /* gray-400 with opacity */
+}
+.modern-scrollbar::-webkit-scrollbar {
+  width: 6px;                          /* Thinner than default */
+}
+.modern-scrollbar::-webkit-scrollbar-track {
+  background: transparent;             /* Invisible track */
+}
+.modern-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.4); /* Light gray with opacity */
+  border-radius: 9999px;              /* Fully rounded */
+  border: none;                        /* No border for cleaner look */
+  transition: background-color 0.2s ease; /* Smooth transition */
+}
+.modern-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.7); /* Darker gray on hover */
+}
+.modern-scrollbar::-webkit-scrollbar-thumb:active {
+  background: rgba(75, 85, 99, 0.8);    /* Even darker when dragging */
+}
+
+.animated-fee-gradient {
+  background: linear-gradient(125deg, #93c5fd, #3b82f6, #1d4ed8, #1e40af, #1e3a8a);
+}
+
+
+/* Submenu expand/collapse animation */
+.submenu {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  overflow: hidden;
+  transition: max-height 250ms ease, opacity 200ms ease, transform 200ms ease;
+}
+.submenu-open {
+  max-height: 800px; /* sufficient for typical lists */
+  opacity: 1;
+  transform: translateY(0);
+}
+.submenu-closed {
+  pointer-events: none;
+}
+a {
+  font-weight: 500;
+  color: inherit;
+  text-decoration: inherit;
+}
+* {
+  box-sizing: border-box;
+}
+
+/*
+ * Global keyboard-focus indicator.
+ * The portal runs on school-managed machines and is used with assistive tech, so
+ * every interactive element needs a visible focus state. `:focus-visible` keeps
+ * the ring off plain mouse clicks; `!important` is required because a large number
+ * of components set `outline-none` via Tailwind and would otherwise suppress it.
+ */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+[role="menuitem"]:focus-visible,
+[role="option"]:focus-visible,
+[role="checkbox"]:focus-visible,
+[role="switch"]:focus-visible,
+[contenteditable]:focus-visible {
+  outline: 2px solid var(--focus) !important;
+  outline-offset: 2px !important;
+  /* No fixed radius here — an explicit value (e.g. 4px) overrode every
+     element's own Tailwind rounding (rounded-full pill inputs included,
+     e.g. the search bar and login fields), so the focus ring looked
+     square/less-rounded than the control itself. Modern browsers already
+     curve the outline to match the element's actual border-radius. */
+}
+
+/*
+ * The admin header search input already has its own visible focus state —
+ * the surrounding glass pill lightens and gains a shadow via isSearchFocused
+ * (see AdminHeader.jsx) — so the global orange focus-visible outline above
+ * just doubles up on it and clashes with the pill design. Suppressed only
+ * for this control; every other input on the site keeps the global ring.
+ */
+.admin-search-input:focus-visible {
+  outline: none !important;
+}
+
+/*
+ * Auto dark mode based on system preference is intentionally disabled:
+ * most components hardcode light-only backgrounds (bg-white, bg-gray-50, etc.)
+ * and there is no UI to opt out, so switching --foreground to white here made
+ * input/select/textarea text (which inherits color) invisible on those
+ * light backgrounds for any user with OS-level dark mode enabled.
+ * Dark mode can be re-enabled once components are audited to support it,
+ * driven by the .dark / [data-theme="dark"] classes instead of the media query.
+ */
+.error-state-card {
+  background: radial-gradient(circle at top, rgba(252, 165, 165, 0.25), transparent 70%),
+    radial-gradient(circle at bottom, rgba(254, 215, 170, 0.25), transparent 70%),
+    #ffffff;
+}
+.error-state-card::before,
+.error-state-card::after {
+  content: "";
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.4;
+  animation: softPulse 8s ease-in-out infinite alternate;
+}
+.error-state-card::before {
+  top: -80px;
+  right: -60px;
+  background: rgba(248, 113, 113, 0.4);
+}
+.error-state-card::after {
+  bottom: -100px;
+  left: -40px;
+  background: rgba(251, 191, 36, 0.4);
+  animation-delay: 3s;
+}
+
+@keyframes softPulse {
+  from {
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  to {
+    transform: scale(1.15);
+    opacity: 0.5;
+  }
+}
+
+.login-loader {
+  --r1: 154%;
+  --r2: 68.5%;
+  width: 32px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(var(--r1) var(--r2) at top, transparent 79.5%, #f97316 80%),
+    radial-gradient(var(--r1) var(--r2) at bottom, #f97316 79.5%, transparent 80%),
+    radial-gradient(var(--r1) var(--r2) at top, transparent 79.5%, #f97316 80%),
+    #fed7aa;
+  background-size: 50.5% 220%;
+  background-position: -100% 0%, 0% 0%, 100% 0%;
+  background-repeat: no-repeat;
+  animation: loginLoaderWave 2s infinite linear;
+}
+
+@keyframes loginLoaderWave {
+  33% {
+    background-position: 0% 33%, 100% 33%, 200% 33%;
+  }
+  66% {
+    background-position: -100% 66%, 0% 66%, 100% 66%;
+  }
+  100% {
+    background-position: 0% 100%, 100% 100%, 200% 100%;
+  }
+}
+
+/* Modal animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Reusable modal entrance: fade the backdrop, pop the panel */
+.animate-overlay-fade {
+  animation: fadeIn 0.18s ease-out both;
+}
+.animate-modal-pop {
+  animation: slideUp 0.22s cubic-bezier(0.34, 1.1, 0.64, 1) both;
+}
+
+/* Page-level entrance for admin route content (gentle fade + rise).
+   `to` deliberately omits `transform` — with fill-mode `both`, a keyframe
+   that ends on an explicit (even identity) transform value keeps that value
+   applied forever after the animation finishes, and ANY element with a
+   non-`none` transform becomes a new containing block for its
+   `position: fixed` descendants. Every modal on an admin page nested inside
+   a `.page-fade-in` wrapper was being positioned relative to this page div
+   instead of the viewport — its backdrop never actually covered the top of
+   the screen. Omitting `transform` here means the browser animates toward
+   the property's un-animated value (`none`), so once the animation ends the
+   computed transform is `none` again and fixed-position modals behave
+   normally, while the slide-in visual is unchanged. */
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+  }
+}
+.page-fade-in {
+  animation: pageFadeIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Full-screen sheet / multi-step wizard entrance */
+@keyframes sheetIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-sheet-in {
+  animation: sheetIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-fade-in,
+  .animate-sheet-in,
+  .animate-overlay-fade,
+  .animate-modal-pop {
+    animation-duration: 0.01ms;
+  }
+}
+
+/* Animated trailing "..." for inline loading labels */
+@keyframes loadingDots {
+  0%   { content: ""; }
+  25%  { content: "."; }
+  50%  { content: ".."; }
+  75%, 100% { content: "..."; }
+}
+.loading-dots::after {
+  content: "";
+  display: inline-block;
+  width: 1.1em;
+  text-align: left;
+  animation: loadingDots 1.4s steps(1, end) infinite;
+}
+
+/* Thin, light scrollbar for data tables inside a rounded card */
+.table-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.55) transparent;
+  scrollbar-gutter: stable;
+}
+/* Keeps a separate (non-scrolling) table header aligned with the scrolled body */
+.table-scroll-gutter {
+  padding-right: 8px;
+}
+@supports (scrollbar-gutter: stable) {
+  /* body already reserves the gutter — header just matches with padding above */
+}
+.table-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.table-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.table-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.6);
+  background-clip: content-box;
+}
+.table-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+/* Tenant branding variables are populated by TenantProvider at runtime. */
+:root {
+  --tenant-primary: #2563eb;
+  --tenant-secondary: #0f172a;
+}
+
+/*
+ * Respect the OS "reduce motion" preference.
+ * The portal animates on every route change plus card entrances, streak effects
+ * and loaders — all decorative. This neutralises CSS animation/transition and
+ * smooth-scroll; Framer Motion is handled app-side via <MotionConfig reducedMotion="user">.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+}
+
+/*
+ * Chrome/Edge paint a yellow background on any input they think they can
+ * autofill (dates, names, numbers, etc. — common across the admin wizards),
+ * and it can reappear just from focusing the field again, not only after an
+ * actual autofill. `background-color` alone can't override this — Chrome
+ * applies its autofill fill as a UA layer above it — so the standard fix is
+ * to fake the input's own background with a huge inset box-shadow instead.
+ */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+select:-webkit-autofill,
+textarea:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  box-shadow: 0 0 0 1000px #fff inset;
+  -webkit-text-fill-color: inherit;
+  caret-color: inherit;
+  transition: background-color 0s 600000s, color 0s 600000s;
+}

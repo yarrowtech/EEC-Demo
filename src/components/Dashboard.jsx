@@ -1,0 +1,316 @@
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { motion as Motion } from 'framer-motion';
+import Sidebar from './Sidebar';
+import Header from './Header';
+import DashboardHome from './DashboardHome';
+import { StudentDashboardProvider, useStudentDashboard } from './StudentDashboardContext';
+import MobileBottomNav from './MobileBottomNav';
+import useDocumentTitle from '../hooks/useDocumentTitle';
+
+// Lazy-loaded: each of these is only fetched when the student actually opens
+// that tab, instead of all being bundled into the one chunk Dashboard ships
+// on first load (LearningHub alone pulls in the ~6k-line AI Tutor screen).
+const AttendanceView = lazy(() => import('./AttendanceView'));
+const RoutineView = lazy(() => import('./RoutineView'));
+const AssignmentView = lazy(() => import('./AssignmentView'));
+const CoursesView = lazy(() => import('./CoursesView'));
+const ResultsView = lazy(() => import('./ResultsView'));
+const AchievementsView = lazy(() => import('./AchievementsView'));
+const ThemeCustomizer = lazy(() => import('./ThemeCustomizer'));
+const ProfileUpdate = lazy(() => import('./ProfileUpdate'));
+const NoticeBoard = lazy(() => import('./NoticeBoard'));
+const TeacherFeedback = lazy(() => import('./TeacherFeedback'));
+const StudentChat = lazy(() => import('./StudentChat'));
+const ExcuseLetter = lazy(() => import('./ExcuseLetter'));
+const LearningHub = lazy(() => import('./LearningHub'));
+const AcademicAlcove = lazy(() => import('./AcademicAlcove'));
+const StudentWellbeing = lazy(() => import('./StudentWellbeing'));
+const LessonPlanStatusView = lazy(() => import('./LessonPlanStatusView'));
+const StudentExamsView = lazy(() => import('./StudentExamsView'));
+const HolidayListView = lazy(() => import('./HolidayListView'));
+const StudentNotificationCenter = lazy(() => import('./StudentNotificationCenter'));
+const StudentOnboarding = lazy(() => import('./StudentOnboarding'));
+const LearningPathMapView = lazy(() => import('./LearningPathMapView'));
+const MasteryView = lazy(() => import('./MasteryView'));
+const ErrorAnalysisView = lazy(() => import('./ErrorAnalysisView'));
+const StudentHealthReport = lazy(() => import('./StudentHealthReport'));
+const StudentComplaints = lazy(() => import('./StudentComplaints'));
+const StudentMeetings = lazy(() => import('./StudentMeetings'));
+
+// Per-route tab titles. The school name is appended automatically, so
+// `/student/attendance` shows "Attendance · <School>". Falls back to "Student".
+const VIEW_TITLES = {
+  dashboard: 'Dashboard',
+  home: 'Dashboard',
+  learning: 'Learning',
+  'smart-learning': 'Learning',
+  'smart-learning-courses': 'Learning',
+  'smart-learning-courses-reference': 'Learning',
+  'smart-learning-tutor': 'AI Tutor',
+  academics: 'Assignments',
+  assignments: 'Assignments',
+  'assignments-journal': 'Journal',
+  'assignments-academic-alcove': 'Academic Alcove',
+  'study-materials': 'Study Materials',
+  'practice-papers': 'Practice Papers',
+  'my-paths': 'My Paths',
+  attendance: 'Attendance',
+  routine: 'Timetable',
+  schedule: 'Timetable',
+  exams: 'Exams',
+  holidays: 'Holidays',
+  'lesson-plan-status': 'Lesson Plan Status',
+  courses: 'Courses',
+  results: 'Results',
+  health: 'Health Record',
+  complaints: 'Complaints',
+  meetings: 'Meetings',
+  communication: 'Messages',
+  chat: 'Messages',
+  noticeboard: 'Notice Board',
+  teacherfeedback: 'Teacher Feedback',
+  'excuse-letter': 'Excuse Letter',
+  wellness: 'Wellbeing',
+  wellbeing: 'Wellbeing',
+  achievements: 'Achievements',
+  notifications: 'Notifications',
+  'learning-path-map': 'Learning Path',
+  mastery: 'Mastery Progress',
+  'error-analysis': 'Error Analysis',
+  profile: 'Profile',
+  themecustomizer: 'Appearance',
+};
+
+// All of these views render the same LearningHub component (it owns an
+// internal tab bar). Treat them as one logical page so switching tabs inside
+// it doesn't retrigger the page-level fade or remount the tab bar itself —
+// only LearningHub's own content area should transition.
+const LEARNING_HUB_VIEWS = [
+  'learning', 'smart-learning', 'smart-learning-courses',
+  'smart-learning-courses-reference', 'smart-learning-tutor',
+  'study-materials', 'practice-papers', 'my-paths',
+];
+
+const normalizeViewFromPath = (pathname) => {
+  if (
+    pathname === '/student' ||
+    pathname === '/student/' ||
+    pathname === '/dashboard' ||
+    pathname === '/dashboard/'
+  ) {
+    return 'dashboard';
+  }
+  const match = pathname.match(/^\/(student|dashboard)\/([^/]+).*$/);
+  if (match?.[2]) return match[2];
+  return 'dashboard';
+};
+
+const Dashboard = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isChatBoxOpen, setIsChatBoxOpen] = useState(false);
+  const journalRef = useRef(null);
+  const wasDesktopRef = useRef(
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : false
+  );
+
+  useEffect(() => {
+    if (!location.pathname.startsWith('/dashboard')) return;
+    const canonicalPath = location.pathname.replace('/dashboard', '/student');
+    navigate(canonicalPath, { replace: true });
+  }, [location.pathname, navigate]);
+
+  const effectiveView = normalizeViewFromPath(location.pathname);
+
+  useDocumentTitle(VIEW_TITLES[effectiveView] || 'Student');
+
+  // These views manage their own full-height internal layout (e.g. a sticky
+  // composer pinned to the bottom) instead of flowing/scrolling like a normal
+  // page, so they skip the trailing bottom-nav spacer and get flex-1/min-h-0
+  // treatment to receive a definite height from their ancestors.
+  const isFullscreenView = effectiveView === 'excuse-letter'
+    || effectiveView === 'assignments-journal'
+    || (effectiveView === 'chat' && isChatBoxOpen);
+
+  // Chat has its own compact "Messages" header, so the app header is just
+  // redundant vertical space on small screens — keep it on desktop/tablet.
+  const isChatView = effectiveView === 'chat' || effectiveView === 'communication';
+
+  // Fade/remount key for the content area: LearningHub tabs share one key so
+  // its own tab bar stays mounted while only its content swaps underneath.
+  const pageKey = LEARNING_HUB_VIEWS.includes(effectiveView) ? 'learning-hub' : location.pathname;
+
+  useEffect(() => {
+    const syncSidebarForViewport = () => {
+      if (typeof window === 'undefined') return;
+      const isDesktop = window.innerWidth >= 1024;
+
+      // Set initial state by viewport after login/mount.
+      if (!wasDesktopRef.current && !isDesktop) {
+        setSidebarOpen(false);
+      }
+      if (wasDesktopRef.current && isDesktop) {
+        setSidebarOpen(true);
+      }
+
+      // Only force toggle when crossing breakpoint.
+      if (wasDesktopRef.current !== isDesktop) {
+        setSidebarOpen(isDesktop);
+        wasDesktopRef.current = isDesktop;
+      }
+    };
+    syncSidebarForViewport();
+    window.addEventListener('resize', syncSidebarForViewport);
+    return () => window.removeEventListener('resize', syncSidebarForViewport);
+  }, []);
+
+  // Onboarding: show when profile loads and onboardingCompleted === false
+  const { profile } = useStudentDashboard();
+  useEffect(() => {
+    if (profile && profile.onboardingCompleted === false) {
+      setShowOnboarding(true);
+    }
+  }, [profile]);
+
+  // Function to handle navigation
+  const setActiveView = (view) => {
+    const path = view === 'dashboard' ? '/student' : `/student/${view}`;
+    navigate(path);
+  };
+
+  // Function to handle journal save from mobile nav
+  const handleSaveJournal = () => {
+    if (journalRef.current?.saveJournal) {
+      journalRef.current.saveJournal();
+    }
+  };
+
+  // Define view components in an object for cleaner code
+  const viewComponents = {
+    dashboard: (props) => <DashboardHome {...props} setActiveView={setActiveView} />,
+    home: (props) => <DashboardHome {...props} setActiveView={setActiveView} />,
+    learning: LearningHub,
+    'smart-learning': LearningHub,
+    'smart-learning-courses': LearningHub,
+    'smart-learning-courses-reference': LearningHub,
+    'smart-learning-tutor': LearningHub,
+    academics: (props) => <AssignmentView {...props} defaultType="school" />,
+    attendance: AttendanceView,
+    routine: RoutineView,
+    schedule: RoutineView,
+    exams: StudentExamsView,
+    holidays: HolidayListView,
+    'lesson-plan-status': LessonPlanStatusView,
+    assignments: (props) => <AssignmentView {...props} defaultType="school" />,
+    'assignments-journal': (props) => <AssignmentView {...props} ref={journalRef} defaultType="journal" />,
+    'assignments-academic-alcove': (props) => <AcademicAlcove {...props} />,
+    'study-materials': LearningHub,
+    'practice-papers': LearningHub,
+    'my-paths': LearningHub,
+    courses: CoursesView,
+    results: ResultsView,
+    health: StudentHealthReport,
+    complaints: StudentComplaints,
+    meetings: StudentMeetings,
+    communication: StudentChat,
+    noticeboard: NoticeBoard,
+    teacherfeedback: TeacherFeedback,
+    chat: StudentChat,
+    'excuse-letter': ExcuseLetter,
+    wellness: StudentWellbeing,
+    wellbeing: StudentWellbeing,
+    achievements: AchievementsView,
+    notifications: StudentNotificationCenter,
+    'learning-path-map': LearningPathMapView,
+    mastery: MasteryView,
+    'error-analysis': ErrorAnalysisView,
+    profile: ProfileUpdate,
+    themecustomizer: ThemeCustomizer,
+  };
+
+  useEffect(() => {
+    if (!viewComponents[effectiveView]) {
+      navigate('/student', { replace: true });
+    }
+  }, [effectiveView, navigate]);
+
+  const renderContent = () => {
+    const Component = viewComponents[effectiveView];
+
+    if (Component) {
+      return (
+        <Component
+          key={pageKey}
+          setActiveView={setActiveView}
+          onChatOpenChange={setIsChatBoxOpen}
+        />
+      );
+    } else {
+      return <DashboardHome key={`dashboard-fallback:${location.pathname}`} setActiveView={setActiveView} />;
+    }
+  };
+
+  return (
+    <StudentDashboardProvider>
+      <div className="min-h-screen w-full bg-gray-50 flex relative overflow-hidden">
+        <Sidebar
+          activeView={effectiveView}
+          isOpen={sidebarOpen}
+          setIsOpen={setSidebarOpen}
+        />
+        <div
+          className={`flex-1 flex flex-col h-screen transition-all duration-300 ${sidebarOpen ? '' : ''
+            } ${isFullscreenView ? 'overflow-hidden' : 'overflow-y-auto custom-scrollbar'}`}
+        >
+          {!isChatBoxOpen && (
+            <div className={isChatView ? 'hidden lg:block' : ''}>
+              <Header
+                sidebarOpen={sidebarOpen}
+                setSidebarOpen={setSidebarOpen}
+                onOpenProfile={() => navigate('/student/profile')}
+              />
+            </div>
+          )}
+          <main className={`flex-1 min-h-0 ${isFullscreenView ? 'p-0' : ''} w-full flex flex-col`}>
+            <Motion.div
+              key={pageKey}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.38, ease: [0.4, 0, 0.2, 1] }}
+              className={`w-full flex flex-col ${isFullscreenView ? 'flex-1 min-h-0' : ''}`}
+            >
+              <Suspense
+                fallback={
+                  <div className="flex flex-1 items-center justify-center py-16" role="status">
+                    <span className="sr-only">Loading</span>
+                  </div>
+                }
+              >
+                {renderContent()}
+              </Suspense>
+            </Motion.div>
+            {!isFullscreenView && (
+              <div className="h-16 sm:h-18 lg:hidden shrink-0" aria-hidden="true" />
+            )}
+          </main>
+        </div>
+        {!isChatBoxOpen && (
+          <MobileBottomNav activeView={effectiveView} onSaveJournal={handleSaveJournal} />
+        )}
+      </div>
+      {showOnboarding && (
+        <Suspense fallback={null}>
+          <StudentOnboarding
+            studentName={profile?.name || ''}
+            onComplete={() => setShowOnboarding(false)}
+          />
+        </Suspense>
+      )}
+    </StudentDashboardProvider>
+  );
+};
+
+export default Dashboard;
