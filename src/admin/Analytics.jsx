@@ -543,7 +543,7 @@ const Analytics = ({ setShowAdminHeader }) => {
     try {
       const res = await fetch(buildApiUrl('/api/admin-analytics/teacher-effectiveness'), { headers: getAuthHeaders() });
       const data = await res.json().catch(() => ({}));
-      if (res.ok) setTeacherEffectiveness(data.data || []);
+      if (res.ok) setTeacherEffectiveness(Array.isArray(data.data) ? data.data : []);
     } catch { /* silent */ }
     finally { setTeacherEffLoading(false); }
   }, []);
@@ -1690,7 +1690,7 @@ const Analytics = ({ setShowAdminHeader }) => {
               <div className="p-6">
                 {matrixLoading ? (
                   <div className="flex items-center justify-center py-12 text-gray-400 text-sm"><Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading matrix…</div>
-                ) : !masteryMatrix || !masteryMatrix.grades?.length ? (
+                ) : !masteryMatrix || !masteryMatrix.grades?.length || !masteryMatrix.subjects?.length ? (
                   <div className="flex flex-col items-center justify-center py-12 text-gray-300">
                     <BookOpen className="w-10 h-10 mb-2" />
                     <p className="text-sm text-gray-400">No mastery data yet. Data appears as students use the AI Tutor.</p>
@@ -1853,7 +1853,7 @@ const Analytics = ({ setShowAdminHeader }) => {
               <div className="p-6">
                 {healthLoading ? (
                   <div className="flex items-center justify-center py-8 text-gray-400 text-sm"><Loader2 className="w-5 h-5 animate-spin mr-2" /> Checking…</div>
-                ) : !systemHealth ? (
+                ) : !systemHealth || !systemHealth.database || !systemHealth.aiService ? (
                   <div className="flex flex-col items-center justify-center py-8 text-gray-300">
                     <Server className="w-10 h-10 mb-2" />
                     <p className="text-sm text-gray-400">Could not fetch health status.</p>
@@ -1861,27 +1861,27 @@ const Analytics = ({ setShowAdminHeader }) => {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Database */}
-                    <div className={`rounded-xl border p-4 ${systemHealth.database.healthy ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
+                    <div className={`rounded-xl border p-4 ${systemHealth.database?.healthy ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-semibold text-gray-800">Database</span>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${systemHealth.database.healthy ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                          {systemHealth.database.status}
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${systemHealth.database?.healthy ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                          {systemHealth.database?.status}
                         </span>
                       </div>
                       <p className="text-xs text-gray-500">MongoDB connection state</p>
                     </div>
                     {/* AI Service */}
-                    <div className={`rounded-xl border p-4 ${systemHealth.aiService.status === 'ok' || systemHealth.aiService.status === 'healthy' ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
+                    <div className={`rounded-xl border p-4 ${systemHealth.aiService?.status === 'ok' || systemHealth.aiService?.status === 'healthy' ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-semibold text-gray-800">AI Service</span>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${systemHealth.aiService.status === 'ok' || systemHealth.aiService.status === 'healthy' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                          {systemHealth.aiService.status}
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${systemHealth.aiService?.status === 'ok' || systemHealth.aiService?.status === 'healthy' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                          {systemHealth.aiService?.status}
                         </span>
                       </div>
-                      {systemHealth.aiService.latencyMs != null && (
+                      {systemHealth.aiService?.latencyMs != null && (
                         <p className="text-xs text-gray-500">Latency: {systemHealth.aiService.latencyMs}ms</p>
                       )}
-                      {systemHealth.aiService.models && (
+                      {systemHealth.aiService?.models && (
                         <p className="text-xs text-gray-500 mt-1 truncate">
                           Models: {typeof systemHealth.aiService.models === 'object'
                             ? Object.values(systemHealth.aiService.models).join(', ')
