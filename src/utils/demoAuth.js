@@ -2,7 +2,7 @@
 // combination "logs in" as the selected role with a locally-generated token.
 const base64url = (obj) => btoa(JSON.stringify(obj)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
-export const DEMO_ROLES = ['Student', 'Teacher', 'Parent', 'Principal', 'Admin', 'SuperAdmin'];
+export const DEMO_ROLES = ['Student', 'Teacher', 'Parent', 'Principal', 'Admin'];
 
 export const makeDemoToken = (userType, username) => {
   const header = base64url({ alg: 'none', typ: 'JWT' });

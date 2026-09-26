@@ -632,6 +632,13 @@ const LoginForm = () => {
                 )}
               </Motion.button>
             </form>
+
+            {/* Demo credentials hint */}
+            <div className="mt-4 flex items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-800">
+              <span>Demo access — ID: <span className="font-mono">Demo</span></span>
+              <span className="w-1 h-1 rounded-full bg-amber-300" />
+              <span>Pass: <span className="font-mono">123456</span></span>
+            </div>
           </Motion.div>
 
           {/* Trust badges */}
