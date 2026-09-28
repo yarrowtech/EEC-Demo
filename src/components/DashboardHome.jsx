@@ -493,6 +493,10 @@ const FlashcardStatsCard = () => {
   );
   if (error) return <CardError label="Flashcard Recall" onRetry={reload} />;
   if (loading || !data || data.totalAttempts === 0) return null;
+
+  // Defensive: the API may return totals without a per-topic breakdown yet.
+  const byTopic = Array.isArray(data.byTopic) ? data.byTopic : [];
+
   return (
     <div className="rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
@@ -503,7 +507,7 @@ const FlashcardStatsCard = () => {
         <div className="h-full rounded-full bg-amber-200" style={{ width: `${data.overallRate}%` }} />
       </div>
       <div className="space-y-1.5">
-        {data.byTopic.slice(0, 3).map((t) => (
+        {byTopic.slice(0, 3).map((t) => (
           <div key={t.topicId} className="flex items-center justify-between text-xs">
             <span className="text-[#64748b] truncate max-w-[65%]">{t.topicTitle}</span>
             <span className={`font-semibold ${t.recallRate >= 70 ? 'text-emerald-600' : t.recallRate >= 40 ? 'text-amber-600' : 'text-red-500'}`}>{t.recallRate}%</span>
