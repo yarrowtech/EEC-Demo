@@ -5,6 +5,7 @@ import "./App.css";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AuthSessionManager from "./components/AuthSessionManager";
 import FloatingGamesButton from "./components/FloatingGamesButton";
+import WhatsAppCtaButton from "./components/WhatsAppCtaButton";
 
 const LoginForm = lazy(() => import("./components/LoginForm"));
 const SignupForm = lazy(() => import("./components/SignupForm"));
@@ -200,6 +201,7 @@ function App() {
       </Suspense>
 
       <FloatingGamesButton />
+      <WhatsAppCtaButton />
       <Toaster
         position="bottom-right"
         toastOptions={{

@@ -1,34 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { motion as Motion } from 'framer-motion';
 import {
-  ArrowRight, BarChart3, BookOpen, Calendar, ChevronDown, Eye, EyeOff,
-  Globe, GraduationCap, Headphones, Lock, MessagesSquare, ShieldCheck, User, Users, Wallet,
+  ArrowRight, BarChart3, BookOpen, Calendar, GraduationCap, Headphones,
+  MessagesSquare, ShieldCheck, Users, Wallet, UserCog, Briefcase,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { AUTH_NOTICE, consumeAuthNotice, purgeStaleSessionCaches } from '../utils/authSession';
 import { useTenant } from '../context/TenantContext';
-import { DEMO_ROLES, makeDemoToken } from '../utils/demoAuth';
-
-const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-
-const REMEMBER_ME_KEY   = 'eec_remember_me';
-const REMEMBER_ME_DAYS  = 30;
-
-// Password strength scorer
-const getPasswordStrength = (pwd) => {
-  if (!pwd) return { score: 0, label: '', color: '' };
-  let score = 0;
-  if (pwd.length >= 8)  score++;
-  if (pwd.length >= 12) score++;
-  if (/[A-Z]/.test(pwd)) score++;
-  if (/[0-9]/.test(pwd)) score++;
-  if (/[!@#$%^&*()_\-+=[\]{};:'"\\|,.<>/?`~]/.test(pwd)) score++;
-  if (score <= 1) return { score, label: 'Weak',   color: 'bg-red-400'   };
-  if (score <= 3) return { score, label: 'Fair',   color: 'bg-amber-400' };
-  if (score === 4) return { score, label: 'Good',   color: 'bg-blue-400'  };
-  return              { score, label: 'Strong', color: 'bg-emerald-500' };
-};
+import { makeDemoToken } from '../utils/demoAuth';
 
 // Floating glass icon badge used around the hero illustration
 const FloatingIcon = ({ icon, className, delay = 0 }) => (
@@ -46,34 +26,14 @@ const FloatingIcon = ({ icon, className, delay = 0 }) => (
 );
 
 const LoginForm = () => {
-  const { name: organizationName, logo, colors, refreshBranding } = useTenant();
-  const [showPass, setShowPass] = useState(false);
-  const [resetMode, setResetMode] = useState(false);
-  const [resetUserType, setResetUserType] = useState('');
-  const [resetTenantToken, setResetTenantToken] = useState('');
-  const [rememberMeDaysLeft, setRememberMeDaysLeft] = useState(REMEMBER_ME_DAYS);
-  const [formData, setFormData] = useState(() => {
-    // Restore saved username if Remember Me was set
-    try {
-      const saved = JSON.parse(localStorage.getItem(REMEMBER_ME_KEY) || 'null');
-      if (saved?.expiry && saved.expiry > Date.now()) {
-        return { username: saved.username || '', password: '', newPassword: '', confirmPassword: '', rememberMe: true };
-      }
-    } catch { /* ignore */ }
-    return { username: '', password: '', newPassword: '', confirmPassword: '', rememberMe: false };
-  });
-  const [demoRole, setDemoRole] = useState('Student');
-  const [errors, setErrors] = useState({});
-  const [loginError, setLoginError] = useState('');
-  const [resetNotice, setResetNotice] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const { name: organizationName, logo, colors } = useTenant();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     const noticeFromState = location.state?.authNotice;
     const storedNotice = consumeAuthNotice();
-    const notice = noticeFromState || storedNotice; // This can be simplified
+    const notice = noticeFromState || storedNotice;
     if (!notice) return;
 
     if (notice === AUTH_NOTICE.EXPIRED) {
@@ -85,129 +45,11 @@ const LoginForm = () => {
     }
   }, [location.state?.authNotice]);
 
-  // Auto-focus username field on mount (Fix #11)
-  useEffect(() => {
-    const el = document.getElementById('login-username');
-    if (el) el.focus();
-  }, []);
-
-  // Calculate remaining Remember Me days (Fix #12)
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(REMEMBER_ME_KEY) || 'null');
-      if (saved?.expiry && saved.expiry > Date.now()) {
-        const daysLeft = Math.ceil((saved.expiry - Date.now()) / (1000 * 60 * 60 * 24));
-        setRememberMeDaysLeft(Math.min(daysLeft, REMEMBER_ME_DAYS));
-      }
-    } catch { /* ignore */ }
-  }, []);
-
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-
-    // Clear field error as user types
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
-    if (loginError) setLoginError('');
-    if (resetNotice) setResetNotice('');
-  };
-
-  const handleBlur = (e) => {
-    const { name, value } = e.target;
-    // Validate on blur — works in both login and reset mode (Fix #8)
-    if (name === 'username' && !value.trim()) {
-      setErrors(prev => ({ ...prev, username: 'User ID is required' }));
-    }
-    if (name === 'password') {
-      if (!value) {
-        setErrors(prev => ({ ...prev, password: 'Password is required' }));
-      } else if (!resetMode && value.length < 6) {
-        setErrors(prev => ({ ...prev, password: 'Password must be at least 6 characters' }));
-      }
-    }
-    if (name === 'newPassword') {
-      if (!value) {
-        setErrors(prev => ({ ...prev, newPassword: 'New password is required' }));
-      } else if (value.length < 6) {
-        setErrors(prev => ({ ...prev, newPassword: 'Password must be at least 6 characters' }));
-      }
-    }
-    if (name === 'confirmPassword') {
-      if (!value) {
-        setErrors(prev => ({ ...prev, confirmPassword: 'Please confirm your password' }));
-      } else if (value !== formData.newPassword) {
-        setErrors(prev => ({ ...prev, confirmPassword: 'Passwords do not match' }));
-      }
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.username.trim()) {
-      newErrors.username = 'User ID is required';
-    }
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const validateReset = () => {
-    const newErrors = {};
-    if (!formData.username.trim()) {
-      newErrors.username = 'Username is required';
-    }
-    if (!formData.newPassword) {
-      newErrors.newPassword = 'New password is required';
-    } else if (formData.newPassword.length < 8) {
-      newErrors.newPassword = 'Password must be at least 8 characters';
-    } else if (!/[a-z]/.test(formData.newPassword)
-      || !/[A-Z]/.test(formData.newPassword)
-      || !/[0-9]/.test(formData.newPassword)
-      || !/[!@#$%^&*()_\-+=[\]{};:'"\\|,.<>/?`~]/.test(formData.newPassword)) {
-      newErrors.newPassword = 'Include uppercase, lowercase, a number, and a special character';
-    }
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Confirm your password';
-    } else if (formData.newPassword !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const sanitizedUsername = formData.username.trim();
-    if (!validateForm()) return;
-
-    setIsLoading(true);
-    setLoginError('');
-    setResetNotice('');
-
-    // Demo mode: no backend. Any username/password combination logs in as
-    // whichever role is selected above the form.
+  const handleRoleSelect = (role) => {
     purgeStaleSessionCaches();
-    const token = makeDemoToken(demoRole, sanitizedUsername);
+    const token = makeDemoToken(role, `demo-${role.toLowerCase()}`);
     localStorage.setItem('token', token);
-    localStorage.setItem('userType', demoRole);
-
-    if (formData.rememberMe) {
-      localStorage.setItem(REMEMBER_ME_KEY, JSON.stringify({
-        username: sanitizedUsername,
-        expiry: Date.now() + REMEMBER_ME_DAYS * 24 * 60 * 60 * 1000,
-      }));
-    } else {
-      localStorage.removeItem(REMEMBER_ME_KEY);
-    }
+    localStorage.setItem('userType', role);
 
     const redirectByUserType = {
       Student: '/student',
@@ -217,11 +59,17 @@ const LoginForm = () => {
       Admin: '/admin/dashboard',
       SuperAdmin: '/super-admin/overview',
     };
-    toast.success('Login successful');
-    navigate(redirectByUserType[demoRole] || '/student');
-    return;
-
+    toast.success(`Signed in as ${role}`);
+    navigate(redirectByUserType[role] || '/student');
   };
+
+  const roleCards = [
+    { role: 'Student', icon: <GraduationCap size={28} />, desc: 'Access your classes, homework & results', bg: 'bg-blue-500' },
+    { role: 'Teacher', icon: <Briefcase size={28} />, desc: 'Manage classes, assignments & attendance', bg: 'bg-orange-500' },
+    { role: 'Parent', icon: <Users size={28} />, desc: "Track your child's progress & communication", bg: 'bg-emerald-500' },
+    { role: 'Principal', icon: <ShieldCheck size={28} />, desc: 'Oversee school-wide operations & analytics', bg: 'bg-purple-500' },
+    { role: 'Admin', icon: <UserCog size={28} />, desc: 'Manage administration & records', bg: 'bg-rose-500' },
+  ];
 
   const features = [
     { icon: <Users size={18} />, label: 'Smart Attendance', desc: 'Real-time attendance tracking made easy', bg: 'bg-blue-500' },
@@ -386,16 +234,14 @@ const LoginForm = () => {
             <div className="flex items-center justify-center lg:justify-start gap-2 mb-3 lg:mb-2">
               <div className="h-0.5 w-5 bg-amber-400 rounded-full" />
               <span className="text-[11px] font-bold text-amber-600 uppercase tracking-[0.14em]">
-                {resetMode ? 'Password Reset' : 'Portal Access'}
+                Portal Access
               </span>
             </div>
             <h2 className="text-3xl sm:text-[2.25rem] lg:text-3xl font-black text-gray-900 leading-tight">
-              {resetMode ? 'Reset your password' : 'Welcome back!'}
+              Welcome back!
             </h2>
             <p className="mt-2 lg:mt-1 text-sm text-gray-400">
-              {resetMode
-                ? 'Create a new secure password for your account'
-                : `Sign in to continue to ${organizationName || 'Electronic Educare'}.`}
+              Choose your portal to continue to {organizationName || 'Electronic Educare'}.
             </p>
           </Motion.div>
 
@@ -406,238 +252,29 @@ const LoginForm = () => {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="p-6 sm:p-10 lg:p-7"
           >
-            {/* Notices */}
-            {resetNotice && (
-              <div className="mb-5 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                <svg className="mt-0.5 w-4 h-4 shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z"/>
-                </svg>
-                <span>{resetNotice}</span>
-              </div>
-            )}
-            {loginError && (
-              <div className="mb-5 flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
-                <svg className="mt-0.5 w-4 h-4 shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z"/>
-                </svg>
-                <span>{loginError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-5 lg:space-y-3">
-
-              {/* Role selector (demo mode) */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">Login as</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {DEMO_ROLES.map((role) => (
-                    <button
-                      key={role}
-                      type="button"
-                      onClick={() => setDemoRole(role)}
-                      className={`h-10 rounded-full text-xs font-bold border transition-all ${
-                        demoRole === role
-                          ? 'bg-amber-500 border-amber-500 text-white shadow-md'
-                          : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-amber-300'
-                      }`}
-                    >
-                      {role}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* User ID */}
-              <div className="space-y-1.5">
-                <label htmlFor="login-username" className="block text-xs font-bold text-gray-700 uppercase tracking-wider">User ID</label>
-                <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center pointer-events-none">
-                    <User className="w-3.5 h-3.5 text-amber-500" />
+            <div className="space-y-3">
+              {roleCards.map(({ role, icon, desc, bg }, i) => (
+                <Motion.button
+                  key={role}
+                  type="button"
+                  onClick={() => handleRoleSelect(role)}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.05 * i }}
+                  whileHover={{ scale: 1.015, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full flex items-center gap-4 rounded-3xl border border-gray-200 bg-white px-5 py-4 text-left shadow-sm transition-all hover:border-amber-300 hover:shadow-lg"
+                >
+                  <div className={`w-14 h-14 shrink-0 rounded-2xl ${bg} flex items-center justify-center text-white shadow-md`}>
+                    {icon}
                   </div>
-                  <input
-                    id="login-username"
-                    type="text"
-                    name="username"
-                    aria-label="User ID"
-                    value={formData.username}
-                    onChange={handleInputChange}
-                    onBlur={handleBlur}
-                    placeholder="Enter your User ID"
-                    className={`bg-gray-50 w-full h-14 lg:h-12 pl-14 pr-4 rounded-full border text-gray-900 placeholder-gray-400 text-sm font-medium transition-all focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-50 focus:bg-white ${
-                      errors.username
-                        ? 'border-red-300 bg-red-50/30'
-                        : 'border-gray-200 hover:border-amber-200'
-                    }`}
-                  />
-                </div>
-                {errors.username && <p className="text-xs text-red-500 flex items-center gap-1 pl-1">⚠ {errors.username}</p>}
-              </div>
-
-              {/* Password (login mode) */}
-              {!resetMode && (
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">Password</label>
-                  <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center pointer-events-none">
-                      <Lock className="w-3.5 h-3.5 text-amber-500" />
-                    </div>
-                    <input
-                      type={showPass ? 'text' : 'password'}
-                      name="password"
-                      aria-label="Password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      onBlur={handleBlur}
-                      placeholder="Enter your password"
-                      className={`bg-gray-50 w-full h-14 lg:h-12 pl-14 pr-12 rounded-full border text-gray-900 placeholder-gray-400 text-sm font-medium transition-all focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-50 focus:bg-white ${
-                        errors.password
-                          ? 'border-red-300 bg-red-50/30'
-                          : 'border-gray-200 hover:border-amber-200'
-                      }`}
-                    />
-                    <button
-                      type="button"
-                      aria-label={showPass ? 'Hide password' : 'Show password'}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-amber-500 hover:bg-amber-50 transition-all"
-                      onClick={() => setShowPass(!showPass)}
-                    >
-                      {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-base font-bold text-gray-900">{role}</div>
+                    <div className="text-xs text-gray-400 leading-snug">{desc}</div>
                   </div>
-                  {errors.password && <p className="text-xs text-red-500 flex items-center gap-1 pl-1">⚠ {errors.password}</p>}
-                </div>
-              )}
-
-              {/* Reset fields */}
-              {resetMode && (
-                <>
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">New Password</label>
-                    <div className="relative">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center pointer-events-none">
-                        <Lock className="w-3.5 h-3.5 text-amber-500" />
-                      </div>
-                      <input
-                        type={showPass ? 'text' : 'password'}
-                        name="newPassword"
-                        value={formData.newPassword}
-                        onChange={handleInputChange}
-                        onBlur={handleBlur}
-                        placeholder="Create a strong password"
-                        className={`bg-gray-50 w-full h-14 lg:h-12 pl-14 pr-12 rounded-full border text-gray-900 placeholder-gray-400 text-sm font-medium transition-all focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-50 focus:bg-white ${
-                          errors.newPassword
-                            ? 'border-red-300 bg-red-50/30'
-                            : 'border-gray-200 hover:border-amber-200'
-                        }`}
-                      />
-                      <button
-                        type="button"
-                        aria-label={showPass ? 'Hide password' : 'Show password'}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-amber-500 hover:bg-amber-50 transition-all"
-                        onClick={() => setShowPass(!showPass)}
-                      >
-                        {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
-                      </button>
-                    </div>
-                    {/* Password strength meter */}
-                    {formData.newPassword && (() => {
-                      const { score, label, color } = getPasswordStrength(formData.newPassword);
-                      return (
-                        <div className="mt-2 space-y-1">
-                          <div className="flex gap-1">
-                            {[1,2,3,4,5].map((i) => (
-                              <div
-                                key={i}
-                                className={`h-1 flex-1 rounded-full transition-all duration-300 ${i <= score ? color : 'bg-gray-100'}`}
-                              />
-                            ))}
-                          </div>
-                          <p className={`text-[11px] font-semibold pl-0.5 ${
-                            score <= 1 ? 'text-red-500' : score <= 3 ? 'text-amber-500' : score === 4 ? 'text-blue-500' : 'text-emerald-600'
-                          }`}>{label} password</p>
-                        </div>
-                      );
-                    })()}
-                    {errors.newPassword && <p className="text-xs text-red-500 flex items-center gap-1 pl-1">⚠ {errors.newPassword}</p>}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">Confirm Password</label>
-                    <div className="relative">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center pointer-events-none">
-                        <Lock className="w-3.5 h-3.5 text-amber-500" />
-                      </div>
-                      <input
-                        type={showPass ? 'text' : 'password'}
-                        name="confirmPassword"
-                        value={formData.confirmPassword}
-                        onChange={handleInputChange}
-                        onBlur={handleBlur}
-                        placeholder="Re-enter your password"
-                        className={`bg-gray-50 w-full h-14 lg:h-12 pl-14 pr-4 rounded-full border text-gray-900 placeholder-gray-400 text-sm font-medium transition-all focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-50 focus:bg-white ${
-                          errors.confirmPassword
-                            ? 'border-red-300 bg-red-50/30'
-                            : 'border-gray-200 hover:border-amber-200'
-                        }`}
-                      />
-                    </div>
-                    {errors.confirmPassword && <p className="text-xs text-red-500 flex items-center gap-1 pl-1">⚠ {errors.confirmPassword}</p>}
-                  </div>
-                </>
-              )}
-
-              {/* Remember me + Forgot password */}
-              {!resetMode && (
-                <div className="flex items-center justify-between pt-0.5">
-                  <label htmlFor="remember" className="flex items-center gap-3 cursor-pointer select-none group">
-                    <input type="checkbox" id="remember" name="rememberMe" aria-label="Remember me for 30 days" checked={formData.rememberMe} onChange={handleInputChange} className="sr-only peer" />
-                    <div className="w-[18px] h-[18px] rounded-md border-2 border-gray-300 bg-white peer-checked:bg-amber-500 peer-checked:border-amber-500 transition-all flex items-center justify-center shrink-0 shadow-sm">
-                      {formData.rememberMe && (
-                        <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 12 10" fill="none">
-                          <path d="M1 5l3.5 3.5L11 1" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      )}
-                    </div>
-                    <span className="text-sm text-gray-500 group-hover:text-gray-700 transition-colors">
-                      {formData.rememberMe && rememberMeDaysLeft < REMEMBER_ME_DAYS
-                        ? `Remembered — ${rememberMeDaysLeft} day${rememberMeDaysLeft !== 1 ? 's' : ''} left`
-                        : 'Remember me'}
-                    </span>
-                  </label>
-                  {/* <span className="text-sm font-semibold text-amber-600 hover:text-amber-700 cursor-default select-none">
-                    Forgot Password?
-                  </span> */}
-                </div>
-              )}
-
-              {/* Submit */}
-              <Motion.button
-                type="submit"
-                disabled={isLoading}
-                whileHover={{ scale: isLoading ? 1 : 1.01, y: isLoading ? 0 : -2 }}
-                whileTap={{ scale: isLoading ? 1 : 0.98 }}
-                className="w-full h-14 lg:h-12 mt-1 rounded-full font-bold text-sm text-white transition-shadow disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 shadow-lg shadow-amber-300/40 hover:enabled:shadow-xl hover:enabled:shadow-amber-400/50"
-                style={{ background: 'linear-gradient(135deg,#d97706 0%,#f59e0b 55%,#fb923c 100%)' }}
-              >
-                {isLoading ? (
-                  <>
-                    <span className="login-loader" role="status" aria-label="Loading" />
-                    <span className="tracking-wide">{resetMode ? 'Resetting...' : 'Signing in...'}</span>
-                  </>
-                ) : (
-                  <>
-                    {/* <ArrowRight size={17} /> */}
-                    {resetMode ? 'Reset & Sign In' : 'Sign In'}
-                  </>
-                )}
-              </Motion.button>
-            </form>
-
-            {/* Demo credentials hint */}
-            <div className="mt-4 flex items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-800">
-              <span>Demo access — ID: <span className="font-mono">Demo</span></span>
-              <span className="w-1 h-1 rounded-full bg-amber-300" />
-              <span>Pass: <span className="font-mono">123456</span></span>
+                  <ArrowRight className="w-5 h-5 text-gray-300 group-hover:text-amber-500 shrink-0" />
+                </Motion.button>
+              ))}
             </div>
           </Motion.div>
 

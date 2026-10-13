@@ -110,6 +110,30 @@ const normalizeLoadedChapter = (chapter, plan, index) => {
   });
 };
 
+// --- Client-side mock AI generator for the lesson introduction hook -------
+// Produces a short, varied, realistic-sounding opening paragraph for a
+// chapter given its subject and title, without calling any external API.
+const AI_HOOK_OPENERS = [
+  (subject, topic) => `Imagine walking into class today ready to explore ${topic}. This lesson in ${subject} builds a bridge between what students already know and the new ideas waiting ahead.`,
+  (subject, topic) => `Today's ${subject} session takes a hands-on look at ${topic}. Students will move from curiosity to confidence through guided discovery and real-world examples.`,
+  (subject, topic) => `Every great ${subject} lesson starts with a question worth asking - and ${topic} is full of them. We'll unpack the core ideas step by step, using examples students can relate to.`,
+  (subject, topic) => `${topic} is one of those ${subject} topics that clicks once students see it in action. This lesson opens with a quick demonstration before moving into guided practice.`,
+  (subject, topic) => `In this ${subject} lesson, we connect ${topic} to everyday situations students already understand, making the abstract feel concrete from the very first minute.`,
+];
+const AI_HOOK_FOLLOWUPS = [
+  'By the end, learners should be able to explain the key concept in their own words and apply it to a new problem.',
+  'The goal is for every student to leave with at least one "aha" moment they can build on tomorrow.',
+  'We will check for understanding along the way with quick questions before moving to independent practice.',
+  'Expect a mix of short explanation, guided examples, and a few minutes of paired discussion.',
+  'Students will finish with a short recap activity to lock in what they learned.',
+];
+const pickRandom = (list) => list[Math.floor(Math.random() * list.length)];
+const generateMockLessonIntro = (subject, topic) => {
+  const opener = pickRandom(AI_HOOK_OPENERS)(subject || 'this subject', topic || 'this topic');
+  const followup = pickRandom(AI_HOOK_FOLLOWUPS);
+  return `${opener} ${followup}`;
+};
+
 const stripHtml = (value) => String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 const MATERIAL_BUCKETS = new Set(['Study Materials', 'Presentations', 'Images', 'Experiments', 'Report Upload', 'Additional Resources']);
 
@@ -851,30 +875,11 @@ const AIPoweredTeaching = () => {
 
     updateChapter(chapterId, (ch) => ({ ...ch, aiWriting: true }));
     try {
-      const res = await fetch(`${API_BASE}/api/ai-teacher/lesson-content`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({
-          subject,
-          topic,
-          gradeLevel: null,
-          chapterTitle: chapter.title || topic,
-          classId: selectedClass,
-          sectionId: selectedSection,
-          subjectId: selectedSubject,
-        }),
+      // Mock AI generation: simulate model "thinking" time, then produce a
+      // realistic, varied intro paragraph on the client - no backend call.
+      const introText = await new Promise((resolve) => {
+        window.setTimeout(() => resolve(generateMockLessonIntro(subject, topic)), 900 + Math.random() * 500);
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'AI generation failed');
-
-      // Strip markdown, take only the first paragraph (intro should be concise)
-      const raw = (data?.data?.content || '')
-        .replace(/^#{1,3}\s+/gm, '')
-        .replace(/\*\*(.*?)\*\*/g, '$1')
-        .replace(/\*(.*?)\*/g, '$1')
-        .trim();
-      const firstPara = raw.split(/\n{2,}/)[0].trim();
-      const introText = firstPara || raw;
 
       streamTextIntoChapter(chapterId, 'introductionText', introText);
     } catch (err) {

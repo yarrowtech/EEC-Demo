@@ -9,7 +9,7 @@
 [data-theme="light"],
 [data-theme="default"] {
   /* Base styles */
-  font-family: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   font-synthesis: none;
@@ -55,7 +55,7 @@
   --field-radius: 0.75rem;
 
   /* Font Family */
-  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   /* Light mode defaults */
   color-scheme: light;
@@ -504,4 +504,250 @@ textarea:-webkit-autofill {
   -webkit-text-fill-color: inherit;
   caret-color: inherit;
   transition: background-color 0s 600000s, color 0s 600000s;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Ported from EEC-B2C's design language (src/index.css). Scoped classes
+ * only — nothing here touches the HeroUI tokens, tenant vars, or the
+ * focus-visible accessibility rules above.
+ * ────────────────────────────────────────────────────────────────────── */
+
+/* Material Symbols defaults */
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+.fill-icon {
+  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+/* Teacher portal — vibrant color theme instead of the default black-and-white shadcn palette */
+.teacher-portal {
+  --primary: #6c63ff;
+  --primary-foreground: #ffffff;
+  --secondary: #eef2ff;
+  --secondary-foreground: #4338ca;
+  --muted: #f5f4ff;
+  --muted-foreground: #6b7280;
+  --accent: #e0fbf8;
+  --accent-foreground: #0f766e;
+  --border: #e4e1ff;
+  --input: #e4e1ff;
+  --ring: #6c63ff;
+  --chart-1: #6c63ff;
+  --chart-2: #4ecdc4;
+  --chart-3: #f4736e;
+  --chart-4: #f59e0b;
+  --chart-5: #22c55e;
+  --sidebar: #f8f7ff;
+  --sidebar-foreground: #1b1f3b;
+  --sidebar-primary: #6c63ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ece9ff;
+  --sidebar-accent-foreground: #4338ca;
+  --sidebar-border: #e4e1ff;
+  --sidebar-ring: #6c63ff;
+}
+
+/* Student Adventure Theme Variables */
+.student-adventure-theme {
+  --student-primary: #e7c555;
+  --student-coral: #ff6b6b;
+  --student-teal: #4ecdc4;
+  --student-purple: #a29bfe;
+  --student-bg-light: #f8f7f6;
+  --student-bg-dark: #211d11;
+}
+
+/* Lightweight CSS float — offloads to compositor, no JS frame budget */
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-10px); }
+}
+
+/* Adventure hover animation */
+@keyframes adventure-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+.adventure-hover:hover {
+  animation: adventure-pulse 0.6s ease;
+}
+
+.no-select {
+  user-select: none;
+}
+
+/* simple marquee animation used in topbars/tickers */
+@keyframes scroll-x {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes eec-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes topbar-orbit {
+  0% {
+    left: -18%;
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  50% {
+    left: 52%;
+    transform: translate(-50%, -50%) rotate(180deg);
+  }
+  100% {
+    left: 118%;
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+.topbar-orbit {
+  position: absolute;
+  top: 50%;
+  left: -18%;
+  display: block;
+  width: clamp(120px, 20vw, 240px);
+  height: clamp(120px, 20vw, 240px);
+  border-radius: 9999px;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.65), rgba(56, 189, 248, 0.45) 45%, rgba(15, 23, 42, 0));
+  mix-blend-mode: screen;
+  opacity: 0.45;
+  filter: blur(6px);
+  pointer-events: none;
+  animation: topbar-orbit 14s linear infinite;
+}
+.topbar-orbit::after {
+  content: "";
+  position: absolute;
+  inset: 8%;
+  border-radius: inherit;
+  border: 2px solid rgba(191, 219, 254, 0.4);
+  opacity: 0.8;
+  filter: blur(1px);
+}
+
+@keyframes shine {
+  0% { transform: translateX(-120%) skewX(12deg); }
+  50% { transform: translateX(120%) skewX(12deg); }
+  100% { transform: translateX(120%) skewX(12deg); }
+}
+
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes borderGlow {
+  0% { box-shadow: 0 0 10px rgba(168, 85, 247, 0.4); }
+  50% { box-shadow: 0 0 25px rgba(168, 85, 247, 0.9); }
+  100% { box-shadow: 0 0 10px rgba(168, 85, 247, 0.4); }
+}
+
+@keyframes popup-bounce {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.popupBounce {
+  animation: popup-bounce 0.4s ease forwards;
+}
+
+@keyframes wrong-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  50% { transform: translateX(4px); }
+  75% { transform: translateX(-4px); }
+}
+.shakeWrong {
+  animation: wrong-shake 0.4s ease;
+}
+
+/* Details/Summary dropdown animation */
+details summary::-webkit-details-marker {
+  display: none;
+}
+details > div {
+  animation: slideDown 0.3s ease-out;
+}
+details[open] summary .rotate-icon {
+  transform: rotate(180deg);
+}
+.rotate-icon {
+  transition: transform 0.3s ease;
+}
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Logout confirmation modal (SweetAlert2 custom skin) */
+.eec-logout-popup {
+  width: min(92vw, 430px);
+  border-radius: 20px;
+  border: 2px solid rgba(244, 115, 110, 0.2);
+  background: linear-gradient(180deg, #fff7ed 0%, #ffffff 45%);
+  box-shadow: 0 18px 50px rgba(2, 6, 23, 0.18);
+  padding: 1.2rem 1.1rem 1rem;
+}
+.eec-logout-title {
+  color: #1f2937;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+.eec-logout-text {
+  color: #475569;
+  font-size: 0.95rem;
+}
+.eec-logout-icon.swal2-icon {
+  border-color: rgba(244, 115, 110, 0.35);
+  color: #f97316;
+}
+.eec-logout-actions {
+  gap: 0.65rem;
+  margin-top: 0.6rem;
+}
+.eec-logout-confirm-btn,
+.eec-logout-cancel-btn {
+  border: 0;
+  border-radius: 9999px;
+  padding: 0.62rem 1rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.eec-logout-confirm-btn {
+  background: #ef4444;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(239, 68, 68, 0.32);
+}
+.eec-logout-confirm-btn:hover {
+  background: #dc2626;
+}
+.eec-logout-cancel-btn {
+  background: #ffffff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+.eec-logout-cancel-btn:hover {
+  background: #f8fafc;
 }

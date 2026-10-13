@@ -90,6 +90,108 @@ const SimpleMarkdown = ({ text }) => {
   );
 };
 
+const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+// Builds a markdown-formatted "AI" narrative from live dashboard data. Uses
+// randomized openers/connectors so repeated "Regenerate" clicks vary in
+// phrasing even though the underlying numbers stay the same.
+const buildLocalAiInsights = (reportType, ctx) => {
+  const {
+    totalStudents = 0, attendanceRate = 0, averageScore = 0,
+    teacherEffectiveness = [], dropoutRisk = [], cohortTrend = [],
+    contentSummary, integritySummary, aiPathData = [],
+  } = ctx;
+
+  const openers = [
+    'Based on the current dataset,', 'Reviewing the latest figures,', 'Looking across recent activity,',
+  ];
+
+  if (reportType === 'overview') {
+    const trendNote = cohortTrend.length >= 2
+      ? (cohortTrend[cohortTrend.length - 1].avgMarks >= cohortTrend[0].avgMarks
+        ? 'a gentle upward trend in average marks over the tracked months'
+        : 'average marks have softened slightly across the tracked months, worth monitoring')
+      : 'not enough historical data yet to establish a clear trend';
+    return [
+      '## Executive Summary',
+      `${pickRandom(openers)} the school is tracking **${totalStudents} students** with an overall attendance rate of **${Math.round(attendanceRate)}%** and an average score of **${Math.round(averageScore)}%**.`,
+      '',
+      '## Key Observations',
+      `- Attendance is ${attendanceRate >= 90 ? 'strong and above the 90% benchmark' : attendanceRate >= 80 ? 'healthy but has room to improve toward 90%' : 'below target and should be prioritized for intervention'}.`,
+      `- Academic performance shows ${trendNote}.`,
+      `- ${teacherEffectiveness.length ? `${teacherEffectiveness.length} teachers are currently tracked for effectiveness, with the top performer averaging ${Math.round(Math.max(...teacherEffectiveness.map(t => t.avgClassMastery || 0)))}% class mastery.` : 'teacher effectiveness data will populate as more class activity is recorded.'}`,
+      `- ${dropoutRisk.length ? `${dropoutRisk.length} students are currently flagged for elevated dropout risk and should be reviewed with counselors.` : 'no students are currently flagged for elevated dropout risk.'}`,
+      '',
+      '## Recommended Next Steps',
+      '1. Share attendance and performance summaries with department heads this week.',
+      '2. Schedule check-ins for any student flagged as at-risk.',
+      '3. Recognize top-performing teachers and document their strategies for peer learning.',
+    ].join('\n');
+  }
+
+  if (reportType === 'teacher') {
+    const sorted = [...teacherEffectiveness].sort((a, b) => (b.avgClassMastery || 0) - (a.avgClassMastery || 0));
+    const top = sorted.slice(0, 3);
+    const needsSupport = sorted.slice(-2).reverse();
+    return [
+      '## Teacher Effectiveness Summary',
+      `${pickRandom(openers)} ${teacherEffectiveness.length} teachers have measurable class-mastery data this term.`,
+      '',
+      '## Top Performers',
+      ...(top.length ? top.map(t => `- **${t.name}** (${t.subject || 'General'}) — ${Math.round(t.avgClassMastery || 0)}% avg. mastery across ${t.studentCount || 0} students.`) : ['- Not enough data yet to rank teachers.']),
+      '',
+      '## Areas to Support',
+      ...(needsSupport.length ? needsSupport.map(t => `- **${t.name}** (${t.subject || 'General'}) could benefit from mentoring or curriculum review — mastery currently at ${Math.round(t.avgClassMastery || 0)}%.`) : ['- No teachers currently need additional support.']),
+      '',
+      '## Suggested Actions',
+      '1. Pair lower-scoring teachers with top performers for a short mentoring cycle.',
+      '2. Review topics with the lowest coverage across classes and prioritize them next term.',
+    ].join('\n');
+  }
+
+  if (reportType === 'dropout') {
+    const highRisk = dropoutRisk.filter(s => String(s.riskLevel || '').toLowerCase() === 'high');
+    return [
+      '## Dropout Risk Assessment',
+      `${pickRandom(openers)} ${dropoutRisk.length} students are flagged across risk levels, with **${highRisk.length} at high risk**.`,
+      '',
+      '## Highest-Priority Cases',
+      ...(highRisk.length
+        ? highRisk.slice(0, 5).map(s => `- **${s.name}** (${s.grade || 'N/A'}) — attendance ${Math.round(s.attendanceRate || 0)}%, ${s.failedExams || 0} failed exam(s). ${Array.isArray(s.reasons) ? s.reasons.join(', ') : (s.reasons || 'Multiple contributing factors.')}`)
+        : ['- No students currently at high risk — good news for this reporting period.']),
+      '',
+      '## Recommended Interventions',
+      '1. Arrange counselor or parent meetings for every high-risk student within the next two weeks.',
+      '2. Set up attendance monitoring alerts for students below 75% attendance.',
+      '3. Offer remedial sessions for subjects with repeated exam failures.',
+    ].join('\n');
+  }
+
+  if (reportType === 'integrity') {
+    return [
+      '## Exam Integrity Review',
+      `${pickRandom(openers)} the integrity monitor has reviewed recent exam attempts for irregular patterns.`,
+      '',
+      '## Summary',
+      integritySummary
+        ? `- ${integritySummary.flaggedAttempts ?? 'Several'} attempts were flagged for review out of ${integritySummary.totalAttempts ?? 'the total attempts'} analyzed.`
+        : '- No significant integrity concerns detected in the current dataset.',
+      `- ${contentSummary ? 'Content usage patterns were cross-checked against exam timing for anomalies.' : 'Content usage data will strengthen this analysis as more activity is logged.'}`,
+      '',
+      '## Recommendations',
+      '1. Manually review any attempt flagged with multiple simultaneous logins or abnormal timing.',
+      '2. Consider randomizing question order for future assessments to reduce collaboration risk.',
+      '3. Communicate exam integrity expectations to students before the next assessment cycle.',
+    ].join('\n');
+  }
+
+  return [
+    '## AI Insights',
+    `${pickRandom(openers)} the data across ${aiPathData.length} subject area(s) has been analyzed for patterns.`,
+    '- No specific anomalies detected in this reporting window.',
+  ].join('\n');
+};
+
 const AiInsightPanel = ({ label, loading, content, error, onGenerate, accentColor = 'indigo' }) => {
   const colors = {
     indigo: 'from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700',
@@ -105,7 +207,7 @@ const AiInsightPanel = ({ label, loading, content, error, onGenerate, accentColo
         <div className="flex items-center gap-2">
           <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
           <span className="text-xs font-semibold text-indigo-700">AI Insights</span>
-          {content && <span className="text-[10px] text-indigo-400 bg-indigo-100 px-1.5 py-0.5 rounded-full">Generated by Ollama</span>}
+          {content && <span className="text-[10px] text-indigo-400 bg-indigo-100 px-1.5 py-0.5 rounded-full">AI Generated</span>}
         </div>
         <button
           onClick={onGenerate}
@@ -120,7 +222,7 @@ const AiInsightPanel = ({ label, loading, content, error, onGenerate, accentColo
         {loading && (
           <div className="flex items-center gap-3 py-4 text-indigo-500 text-xs">
             <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-            <span>Ollama is analysing the data — this may take 20–60 seconds…</span>
+            <span>Analyzing the latest data…</span>
           </div>
         )}
         {error && !loading && (
@@ -131,7 +233,7 @@ const AiInsightPanel = ({ label, loading, content, error, onGenerate, accentColo
         )}
         {!loading && !error && content && <SimpleMarkdown text={content} />}
         {!loading && !error && !content && (
-          <p className="text-xs text-indigo-400 py-2">Click &ldquo;Generate&rdquo; to get AI-powered insights from Ollama.</p>
+          <p className="text-xs text-indigo-400 py-2">Click &ldquo;Generate&rdquo; to get AI-powered insights.</p>
         )}
       </div>
     </div>
@@ -917,59 +1019,26 @@ const Analytics = ({ setShowAdminHeader }) => {
     }
   };
 
+  // Demo mode: there is no Ollama/LLM backend, so insights are composed locally
+  // from the same data the dashboard already has. Phrasing is randomized per
+  // click so "Regenerate" doesn't return an identical block of text.
   const generateInsights = async (reportType) => {
     setAiInsightsLoading((prev) => ({ ...prev, [reportType]: true }));
     setAiInsightsError((prev) => ({ ...prev, [reportType]: '' }));
     try {
-      const body = {
-        report_type: reportType,
-        school_name: 'School',
-        total_students: scopedStudentCount,
-        attendance_rate: scopedAttendanceRate,
-        average_score: scopedAverageScore,
-        mastery_matrix: masteryMatrix || undefined,
-        teacher_effectiveness: teacherEffectiveness.map((t) => ({
-          name: t.name,
-          subject: t.subject,
-          avgClassMastery: t.avgClassMastery,
-          studentCount: t.studentCount,
-          topicsCovered: t.topicsCovered,
-          effectiveness: t.effectiveness,
-        })),
-        dropout_risk: dropoutRisk.map((s) => ({
-          name: s.name,
-          grade: s.grade,
-          attendanceRate: s.attendanceRate,
-          failedExams: s.failedExams,
-          riskLevel: s.riskLevel,
-          reasons: s.reasons,
-        })),
-        cohort_trend: (cohortTrend?.trend || []).map((p) => ({
-          month: p.month,
-          avgMarks: p.avgMarks,
-          passRate: p.passRate,
-          studentCount: p.studentCount,
-        })),
-        content_summary: contentUsage.summary || undefined,
-        integrity_summary: examIntegrity.summary || undefined,
-        ai_path_data: aiPathData.map((r) => ({
-          subject: r.subject,
-          studentCount: r.studentCount,
-          avgScore: r.avgScore,
-          strongTopics: r.strongTopics,
-          weakTopics: r.weakTopics,
-          totalTopics: r.totalTopics,
-          totalAttempts: r.totalAttempts,
-        })),
-      };
-      const res = await fetch(buildApiUrl('/api/admin-analytics/ai-insights'), {
-        method: 'POST',
-        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+      const content = buildLocalAiInsights(reportType, {
+        totalStudents: scopedStudentCount,
+        attendanceRate: scopedAttendanceRate,
+        averageScore: scopedAverageScore,
+        teacherEffectiveness,
+        dropoutRisk,
+        cohortTrend: cohortTrend?.trend || [],
+        contentSummary: contentUsage.summary,
+        integritySummary: examIntegrity.summary,
+        aiPathData,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'AI service returned an error');
-      setAiInsights((prev) => ({ ...prev, [reportType]: data.content || '' }));
+      await new Promise((resolve) => setTimeout(resolve, 900 + Math.random() * 900));
+      setAiInsights((prev) => ({ ...prev, [reportType]: content }));
     } catch (err) {
       setAiInsightsError((prev) => ({ ...prev, [reportType]: err.message || 'Failed to generate insights' }));
     } finally {
@@ -1380,7 +1449,7 @@ const Analytics = ({ setShowAdminHeader }) => {
                 </div>
                 <div>
                   <h2 className="text-base font-semibold text-gray-900">AI Executive Summary</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">Ollama analyses all current analytics and generates actionable insights</p>
+                  <p className="text-xs text-gray-400 mt-0.5">AI analyses all current analytics and generates actionable insights</p>
                 </div>
               </div>
               <AiInsightPanel

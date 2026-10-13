@@ -12,6 +12,52 @@ const QUESTION_TYPES = [
 
 const emptyOptions = ['', '', '', ''];
 
+// ─── Mock AI question generator ────────────────────────────────────────────
+// This is a frontend-only demo with no AI backend — generate a realistic,
+// varied MCQ locally instead of calling a real API.
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+const generateMockQuestion = ({ subject, gradeLevel }) => {
+  const subj = subject || 'General Knowledge';
+  const grade = gradeLevel ? ` (${gradeLevel})` : '';
+  const templates = [
+    {
+      question: `Which of the following best describes a core concept in ${subj}${grade}?`,
+      options: [
+        `A widely accepted principle central to ${subj}`,
+        `A common misconception unrelated to ${subj}`,
+        `An outdated idea no longer taught in ${subj}`,
+        `A term borrowed from an unrelated subject`,
+      ],
+      correctIndex: 0,
+      explanation: `The correct answer reflects a foundational idea in ${subj} that students are expected to know at this level.`,
+    },
+    {
+      question: `A student is studying ${subj}${grade}. Which statement is TRUE?`,
+      options: [
+        `The concept only applies under very rare conditions`,
+        `The concept applies consistently under the standard conditions taught in class`,
+        `The concept has no real-world application`,
+        `The concept contradicts earlier lessons in ${subj}`,
+      ],
+      correctIndex: 1,
+      explanation: `This reinforces the standard, consistently-applicable rule taught in ${subj} at this level.`,
+    },
+    {
+      question: `In ${subj}${grade}, which example correctly demonstrates the concept just covered in class?`,
+      options: [
+        `An example that follows the expected pattern step by step`,
+        `An example that skips a required step`,
+        `An example unrelated to the topic`,
+        `An example that reverses the correct order`,
+      ],
+      correctIndex: 0,
+      explanation: `Only the first option follows the process correctly from start to finish, matching what was taught.`,
+    },
+  ];
+  return pick(templates);
+};
+
 const PracticeQuestions = ({ initialType = '' }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -173,38 +219,16 @@ const PracticeQuestions = ({ initialType = '' }) => {
     setAiGenerating(true);
     setAiError('');
     try {
-      const res = await apiFetch('/api/ai-teacher/quiz-generate', {
-        method: 'POST',
-        body: JSON.stringify({
-          subject: selectedAllocation.subjectId?.name || '',
-          topic: selectedAllocation.subjectId?.name || '',
-          gradeLevel: selectedAllocation.classId?.name || '',
-          count: 1,
-          questionType: 'mcq',
-          classId: selectedAllocation.classId?._id || '',
-          sectionId: selectedAllocation.sectionId?._id || '',
-          subjectId: selectedAllocation.subjectId?._id || '',
-          academicYearId: selectedAllocation.academicYearId?._id || selectedAllocation.academicYearId || '',
-        }),
+      const subject = selectedAllocation.subjectId?.name || '';
+      const gradeLevel = selectedAllocation.classId?.name || '';
+      const generated = await new Promise((resolve) => {
+        setTimeout(() => resolve(generateMockQuestion({ subject, gradeLevel })), 800 + Math.random() * 700);
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'AI request failed');
-      const first = Array.isArray(data?.data?.questions) ? data.data.questions[0] : null;
-      if (first) {
-        setQuestionType('mcq');
-        setQuestionText(first.questionText || '');
-        const opts = (first.options || []).map((o) => (typeof o === 'string' ? o : o.text || ''));
-        setOptions([...opts, '', '', '', ''].slice(0, 4));
-        const correctOpt = (first.options || []).find((o) => o.isCorrect);
-        setCorrectAnswer(
-          (typeof correctOpt === 'string' ? correctOpt : correctOpt?.text)
-          || first.correctAnswer
-          || ''
-        );
-        setExplanation(first.explanation || '');
-      } else {
-        setAiError('AI could not create a complete question. Please try again.');
-      }
+      setQuestionType('mcq');
+      setQuestionText(generated.question);
+      setOptions(generated.options.slice(0, 4));
+      setCorrectAnswer(generated.options[generated.correctIndex]);
+      setExplanation(generated.explanation);
     } catch (err) {
       if (err.code !== AUTH_NOTICE.EXPIRED) setAiError(err.message || 'Failed to generate question');
     } finally {

@@ -29,6 +29,7 @@ const AILearningPath = () => {
   const [loading, setLoading] = useState(true);
   const [selectedResource, setSelectedResource] = useState(null);
   const [completingResource, setCompletingResource] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (studentId && subject) {
@@ -56,6 +57,58 @@ const AILearningPath = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // --- Client-side mock AI path regeneration -------------------------------
+  // Builds a fresh, varied set of recommended resources for the current
+  // subject/topic, entirely on the client - no external API call.
+  const RESOURCE_TYPES = ['video', 'article', 'practice', 'quiz', 'interactive'];
+  const DIFFICULTIES = ['basic', 'intermediate', 'advanced'];
+  const TITLE_TEMPLATES = [
+    (topic) => `${topic}: Concept Walkthrough`,
+    (topic) => `Guided Practice - ${topic}`,
+    (topic) => `${topic} in the Real World`,
+    (topic) => `Quick Check: ${topic}`,
+    (topic) => `Deep Dive into ${topic}`,
+    (topic) => `${topic} Problem Set`,
+    (topic) => `Interactive Explorer - ${topic}`,
+  ];
+  const pick = (list) => list[Math.floor(Math.random() * list.length)];
+  const generateMockLearningPath = (previousPath) => {
+    const topic = previousPath?.currentTopic || 'this topic';
+    const usedTitles = new Set();
+    const resourceCount = 4 + Math.floor(Math.random() * 2); // 4-5 resources
+    const recommendedResources = Array.from({ length: resourceCount }).map(() => {
+      let title = pick(TITLE_TEMPLATES)(topic);
+      let attempts = 0;
+      while (usedTitles.has(title) && attempts < 5) {
+        title = pick(TITLE_TEMPLATES)(topic);
+        attempts += 1;
+      }
+      usedTitles.add(title);
+      return {
+        title,
+        type: pick(RESOURCE_TYPES),
+        url: `/learning/${(previousPath?.subject || 'general').toLowerCase()}/${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+        difficulty: pick(DIFFICULTIES),
+        estimatedTime: 15 + Math.floor(Math.random() * 6) * 5,
+        completed: false,
+      };
+    });
+    return {
+      ...previousPath,
+      recommendedResources,
+      lastAccessed: new Date(),
+    };
+  };
+
+  const refreshPath = () => {
+    if (refreshing || !learningPath) return;
+    setRefreshing(true);
+    window.setTimeout(() => {
+      setLearningPath((prev) => generateMockLearningPath(prev));
+      setRefreshing(false);
+    }, 900 + Math.random() * 500);
   };
 
   const markResourceCompleted = async (resourceIndex, topicTitle) => {
@@ -293,9 +346,13 @@ const AILearningPath = () => {
               <Brain className="w-5 h-5 mr-2 text-blue-600" />
               Recommended Learning Resources
             </h2>
-            <button className="text-blue-600 hover:text-blue-700 flex items-center space-x-2 text-sm">
-              <RefreshCw className="w-4 h-4" />
-              <span>Refresh Path</span>
+            <button
+              onClick={refreshPath}
+              disabled={refreshing}
+              className="text-blue-600 hover:text-blue-700 flex items-center space-x-2 text-sm disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span>{refreshing ? 'Refreshing...' : 'Refresh Path'}</span>
             </button>
           </div>
         </div>

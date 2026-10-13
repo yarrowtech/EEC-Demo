@@ -7,23 +7,37 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
-
-const authHeaders = () => ({
-  'Content-Type': 'application/json',
-  Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+// ─── Mock AI generation helpers ─────────────────────────────────────────────
+// This is a frontend-only demo — there is no AI backend. Every "AI" action
+// below produces realistic, varied content locally (randomized selection +
+// template strings) after a short simulated "thinking" delay, instead of
+// calling a real API.
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const pickN = (arr, n) => [...arr].sort(() => Math.random() - 0.5).slice(0, n);
+const mockThink = (build, ms) => new Promise((resolve) => {
+  setTimeout(() => resolve(build()), ms || 800 + Math.random() * 700);
 });
 
-const post = async (path, body) => {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || 'Request failed');
-  return data;
-};
+const HOOKS = [
+  'a real-world scenario students will instantly recognise',
+  'a short thought-provoking question',
+  'a quick before/after comparison',
+  'a surprising fact or statistic',
+  'a 60-second demonstration',
+];
+const MISCONCEPTIONS = [
+  'confusing correlation with causation',
+  'assuming the rule always applies without checking conditions',
+  'mixing up the order of operations',
+  'overgeneralising from a single example',
+  'forgetting to account for units/scale',
+];
+const ENGAGEMENT_TIPS = [
+  'pair-share for 90 seconds before taking answers',
+  'use mini-whiteboards for a quick show-of-hands check',
+  'cold-call two students then ask for a volunteer to explain',
+  'run a 3-question exit poll before moving on',
+];
 
 // ─── Markdown-lite renderer ──────────────────────────────────────────────────
 const MarkdownContent = ({ text }) => {
@@ -73,9 +87,36 @@ const LessonContentTab = () => {
   const generate = async () => {
     if (!subject || !topic) { toast.error('Subject and topic are required'); return; }
     setLoading(true);
+    setResult('');
     try {
-      const data = await post('/api/ai-teacher/lesson-content', { subject, topic, gradeLevel });
-      setResult(data?.data?.content || '');
+      const grade = gradeLevel ? `Grade ${gradeLevel}` : 'the class';
+      const content = await mockThink(() => `## Lesson: ${topic} (${subject})
+**Grade level:** ${grade}
+
+## Hook (5 min)
+Open with ${pick(HOOKS)} connected to "${topic}". Ask students what they already know and note responses on the board.
+
+## Key Concepts
+- ${topic} builds on prior knowledge of core ${subject} fundamentals.
+- Identify 2-3 essential vocabulary terms and define them in student-friendly language.
+- Link ${topic} to at least one real-world application relevant to ${grade}.
+
+## Step-by-Step Explanation
+1. Introduce the core idea behind ${topic} using a worked example.
+2. Model the process explicitly, thinking aloud as you go.
+3. Guide students through a second example, inviting them to predict the next step.
+4. Have students attempt a similar problem independently.
+
+## Common Misconception to Watch For
+Students often struggle with ${pick(MISCONCEPTIONS)} — address this directly with a contrasting example.
+
+## Recap (5 min)
+- Summarise the main takeaway from ${topic} in one sentence.
+- Ask 2 quick check-for-understanding questions.
+- Preview how ${topic} connects to the next lesson.
+
+**Engagement tip:** ${pick(ENGAGEMENT_TIPS)}.`);
+      setResult(content);
       toast.success('Lesson content generated!');
     } catch (err) { toast.error(err.message); }
     finally { setLoading(false); }
@@ -111,9 +152,32 @@ const HingeQuestionTab = () => {
   const generate = async () => {
     if (!subject || !topic) { toast.error('Subject and topic are required'); return; }
     setLoading(true);
+    setResult('');
     try {
-      const data = await post('/api/ai-teacher/hinge-questions', { subject, topic, gradeLevel });
-      setResult(data?.data?.content || '');
+      const grade = gradeLevel ? `Grade ${gradeLevel}` : 'the class';
+      const stems = [
+        `Which of the following best explains why ${topic} works the way it does?`,
+        `A student claims that ${topic} always applies — is this true? Why or why not?`,
+        `What would happen to the outcome if one key condition of ${topic} changed?`,
+        `Which example below is NOT a correct application of ${topic}?`,
+      ];
+      const questions = pickN(stems, 3);
+      const content = await mockThink(() => `## Hinge Questions: ${topic} (${subject})
+**Grade level:** ${grade}
+Each question below is designed to be answered in under 2 minutes and reveals whether students are ready to move on.
+
+${questions.map((q, i) => `**Q${i + 1}.** ${q}
+- A) A common but incorrect answer reflecting ${pick(MISCONCEPTIONS)}
+- B) The correct answer, clearly justified
+- C) A partially correct answer missing a key detail
+- D) An answer based on a surface-level pattern rather than the underlying concept
+
+*Misconception targeted:* ${pick(MISCONCEPTIONS)}
+`).join('\n')}
+## How to Use
+- ${pick(ENGAGEMENT_TIPS)}.
+- If fewer than 70% answer correctly, re-teach ${topic} with a fresh example before proceeding.`);
+      setResult(content);
       toast.success('Hinge questions generated!');
     } catch (err) { toast.error(err.message); }
     finally { setLoading(false); }
@@ -149,9 +213,30 @@ const DifferentiatedTab = () => {
   const generate = async () => {
     if (!subject || !topic) { toast.error('Subject and topic are required'); return; }
     setLoading(true);
+    setResult('');
     try {
-      const data = await post('/api/ai-teacher/differentiated-content', { subject, topic, gradeLevel });
-      setResult(data?.data?.content || '');
+      const grade = gradeLevel ? `Grade ${gradeLevel}` : 'the class';
+      const content = await mockThink(() => `## Differentiated Content: ${topic} (${subject})
+**Grade level:** ${grade}
+
+## Foundation
+- Simplified explanation of ${topic} using concrete, familiar examples.
+- Provide a worked example with every step labelled.
+- Practice: 3 straightforward questions with guided prompts and a word/formula bank.
+- Support: sentence starters and a visual reference sheet.
+
+## Standard
+- Full explanation of ${topic} at grade-level depth, including the "why" behind the rule.
+- Practice: 5 mixed questions moving from guided to independent.
+- Include one question that connects ${topic} to a previous unit.
+
+## Extension
+- Explore an edge case or exception within ${topic} that challenges surface-level understanding.
+- Practice: 2-3 open-ended or multi-step problems requiring justification of reasoning.
+- Challenge task: have students create their own example of ${topic} and explain why it fits, or find a real-world case where ${topic} does not apply.
+
+**Note:** All three tiers share the same learning objective for ${topic}; only scaffolding and complexity change.`);
+      setResult(content);
       toast.success('Differentiated content generated!');
     } catch (err) { toast.error(err.message); }
     finally { setLoading(false); }
@@ -187,10 +272,35 @@ const ClassSummaryTab = () => {
 
   const generate = async () => {
     setLoading(true);
+    setResult('');
     try {
-      const data = await post('/api/ai-teacher/class-summary', { className, section, subject });
-      setResult(data?.data?.content || '');
-      setStats(data?.data?.stats || null);
+      const label = `Class ${className || '—'}${section ? `-${section}` : ''}${subject ? ` (${subject})` : ''}`;
+      const totalStudents = 28 + Math.floor(Math.random() * 15);
+      const avgAtt = 82 + Math.floor(Math.random() * 14);
+      const below75 = Math.floor(Math.random() * 6);
+      const avgScore = 62 + Math.floor(Math.random() * 25);
+      const trend = pick(['improving steadily', 'holding steady', 'showing early signs of decline', 'improving quickly after last term\'s intervention']);
+      const strongTopic = pick(['fractions and ratios', 'reading comprehension', 'grammar and sentence structure', 'basic algebra', 'scientific method', 'map and data skills']);
+      const weakTopic = pick(['word problems', 'essay structuring', 'long division', 'graph interpretation', 'vocabulary in context', 'multi-step reasoning']);
+      const content = await mockThink(() => `## Class Performance Summary — ${label}
+
+Overall, this class is ${trend}. Average attendance sits at ${avgAtt}%, with ${below75} student${below75 === 1 ? '' : 's'} below the 75% attendance threshold that typically predicts at-risk outcomes.
+
+## Strengths
+- Strong performance on ${strongTopic}, with most students demonstrating solid mastery.
+- Class participation and homework completion rates remain healthy.
+
+## Areas Needing Attention
+- ${weakTopic.charAt(0).toUpperCase() + weakTopic.slice(1)} continues to be a stumbling block for a meaningful subset of students.
+- ${below75} student${below75 === 1 ? '' : 's'} with low attendance may need a check-in to identify barriers.
+
+## Recommendations
+- Reteach ${weakTopic} using a scaffolded approach before the next assessment.
+- Schedule brief 1:1 check-ins with students below the attendance threshold.
+- Continue reinforcing ${strongTopic} through spaced retrieval practice so mastery is retained.
+- Consider a low-stakes formative quiz next week to confirm retention before moving to the next unit.`);
+      setResult(content);
+      setStats({ totalStudents, avgAtt, below75, avgScore });
       toast.success('Class summary generated!');
     } catch (err) { toast.error(err.message); }
     finally { setLoading(false); }
@@ -243,9 +353,34 @@ const ParentReportTab = () => {
   const generate = async () => {
     if (!studentId && !studentName) { toast.error('Enter student ID or name'); return; }
     setLoading(true);
+    setResult('');
     try {
-      const data = await post('/api/ai-teacher/parent-report', { studentId, studentName, grade, section });
-      setResult(data?.data?.content || '');
+      const name = studentName || `Student ${studentId}`;
+      const gradeLabel = grade ? `Grade ${grade}${section ? `-${section}` : ''}` : 'their class';
+      const strength = pick(['a genuine curiosity for asking follow-up questions', 'consistent, high-quality homework completion', 'strong collaboration during group work', 'clear and confident verbal explanations', 'steady improvement in test scores this term']);
+      const growthArea = pick(['organising longer written responses', 'double-checking work before submitting', 'staying focused during independent tasks', 'building confidence to ask for help sooner', 'managing time during timed assessments']);
+      const attendanceNote = pick(['Attendance has been excellent this term.', 'Attendance has been mostly consistent, with a couple of missed days.', 'A few absences this term may be affecting continuity — worth a quick check-in.']);
+      const content = await mockThink(() => `## Progress Report — ${name}
+**${gradeLabel}**
+
+Dear Parent/Guardian,
+
+It has been a pleasure having ${name} in class this term. ${name} has shown ${strength}, which has had a positive impact on both their own learning and the classroom community.
+
+## Academic Progress
+${name} is meeting expectations across most subject areas, with particularly strong engagement recently. ${attendanceNote}
+
+## Area for Growth
+One focus for the coming weeks will be ${growthArea}. We will be providing targeted support in class, and any reinforcement at home — even 10-15 minutes a few times a week — would help build this skill further.
+
+## Next Steps
+- Continue encouraging daily reading/practice at home.
+- Celebrate effort and small wins, not just final grades.
+- Feel free to reach out any time with questions — we're glad to partner with you on ${name}'s learning journey.
+
+Warm regards,
+Class Teacher`);
+      setResult(content);
       toast.success('Parent report generated!');
     } catch (err) { toast.error(err.message); }
     finally { setLoading(false); }
@@ -283,11 +418,37 @@ const ExitTicketTab = () => {
   const grade = async () => {
     if (!question || !response) { toast.error('Question and student response are required'); return; }
     setLoading(true);
+    setResult('');
     try {
-      const data = await post('/api/ai-teacher/exit-ticket-grade', {
-        question, studentResponse: response, subject, topic,
-      });
-      setResult(data?.data?.content || '');
+      const wordCount = response.trim().split(/\s+/).filter(Boolean).length;
+      const depth = wordCount > 40 ? 'detailed' : wordCount > 15 ? 'moderate' : 'brief';
+      const understanding = pick(['Secure', 'Developing', 'Partial', 'Emerging']);
+      const score = { Secure: 90, Developing: 75, Partial: 60, Emerging: 45 }[understanding] + Math.floor(Math.random() * 8);
+      const topicLabel = topic || subject || 'this topic';
+      const content = await mockThink(() => `## Exit Ticket Grade
+
+**Understanding level:** ${understanding} (${score}/100)
+**Response depth:** ${depth} (${wordCount} words)
+
+## Assessment
+The response demonstrates ${understanding.toLowerCase()} understanding of ${topicLabel}. ${
+  understanding === 'Secure'
+    ? `The student correctly addresses the core idea and supports it with relevant reasoning.`
+    : understanding === 'Developing'
+    ? `The student shows the right general direction but the explanation could be more precise or complete.`
+    : `The response touches on the topic but misses a key element of the expected answer.`
+}
+
+## What's Working
+- The answer directly engages with the question asked.
+- ${pick(['Correct terminology is used.', 'The reasoning is logically ordered.', 'A relevant example is included.'])}
+
+## Next Steps
+- ${understanding === 'Secure'
+    ? `Extend with a slightly harder follow-up question to confirm mastery.`
+    : `Revisit ${topicLabel} with a worked example, focusing on ${pick(MISCONCEPTIONS)}.`}
+- ${pick(['Pair with a peer who scored "Secure" for a quick explain-back.', 'Provide a sentence frame for the next attempt.', 'Recommend 2 targeted practice questions before the next class.'])}`);
+      setResult(content);
       toast.success('Exit ticket graded!');
     } catch (err) { toast.error(err.message); }
     finally { setLoading(false); }
@@ -333,9 +494,42 @@ const IdoWeedoTab = () => {
   const generate = async () => {
     if (!subject || !topic) { toast.error('Subject and topic are required'); return; }
     setLoading(true);
+    setResult('');
     try {
-      const data = await post('/api/ai-teacher/idoweedo', { subject, topic, gradeLevel, totalMinutes: Number(totalMinutes) || 60 });
-      setResult(data?.data?.content || '');
+      const mins = Number(totalMinutes) || 60;
+      const hook = Math.round(mins * 0.1);
+      const iDo = Math.round(mins * 0.25);
+      const weDo = Math.round(mins * 0.3);
+      const youDo = mins - hook - iDo - weDo;
+      const grade = gradeLevel ? `Grade ${gradeLevel}` : 'the class';
+      const content = await mockThink(() => `## Gradual Release Lesson: ${topic} (${subject})
+**Grade level:** ${grade} · **Total time:** ${mins} min
+
+## HOOK (${hook} min)
+Open with ${pick(HOOKS)} to activate prior knowledge about ${topic}.
+- Teacher: poses an engaging question, gathers initial ideas.
+- Student: shares predictions, activates background knowledge.
+
+## I Do (${iDo} min)
+Teacher models ${topic} explicitly, thinking aloud step by step.
+- Teacher action: demonstrates one full worked example, narrating the reasoning behind each step.
+- Student action: watches, takes notes, asks clarifying questions.
+- Activity: annotate a shared example as a class.
+
+## We Do (${weDo} min)
+Guided practice — teacher and students work through examples together.
+- Teacher action: poses a similar problem, prompts students for the next step, corrects misconceptions in real time (watch for ${pick(MISCONCEPTIONS)}).
+- Student action: contributes steps, works in pairs on a scaffolded example.
+- Activity: think-pair-share on a near-identical problem.
+
+## You Do (${youDo} min)
+Independent practice to check for mastery.
+- Teacher action: circulates, provides targeted support, collects a quick formative check.
+- Student action: completes 2-3 independent practice problems on ${topic}.
+- Activity: exit ticket with one application question.
+
+**Engagement tip:** ${pick(ENGAGEMENT_TIPS)}.`);
+      setResult(content);
       toast.success('I Do / We Do / You Do lesson generated!');
     } catch (err) { toast.error(err.message); }
     finally { setLoading(false); }
@@ -376,8 +570,29 @@ const CurriculumAlignmentTab = () => {
     setLoading(true);
     setResult('');
     try {
-      const data = await post('/api/ai-teacher/curriculum-check', { subject, gradeLevel, curriculumStandard, lessonContent });
-      setResult(data?.data?.content || '');
+      const contentWords = lessonContent.trim().split(/\s+/).filter(Boolean).length;
+      const alignmentScore = 55 + Math.floor(Math.random() * 40);
+      const verdict = alignmentScore >= 85 ? 'Strongly Aligned' : alignmentScore >= 70 ? 'Mostly Aligned' : alignmentScore >= 55 ? 'Partially Aligned' : 'Needs Revision';
+      const subjLabel = subject || 'the subject';
+      const gradeLabel = gradeLevel ? `Grade ${gradeLevel}` : 'the target grade level';
+      const content = await mockThink(() => `## Curriculum Alignment Check
+
+**Standard:** "${curriculumStandard.slice(0, 140)}${curriculumStandard.length > 140 ? '…' : ''}"
+**Alignment score:** ${alignmentScore}/100 — ${verdict}
+**Lesson content reviewed:** ${contentWords} words
+
+## Coverage
+The lesson content ${alignmentScore >= 70 ? 'addresses the core learning objective directly' : 'only partially addresses the stated objective'} for ${subjLabel} at ${gradeLabel}.
+- ${pick(['Key vocabulary from the standard appears in the lesson.', 'The lesson includes an assessable outcome matching the standard.', 'Real-world application connects to the standard\'s intent.'])}
+
+## Gaps Identified
+- ${alignmentScore >= 85 ? 'No significant gaps — minor wording alignment only.' : `The lesson does not explicitly ${pick(['assess mastery of the full standard', 'require students to apply the concept independently', 'address the higher-order thinking implied by the standard', 'connect to real-world examples referenced in the standard'])}.`}
+- ${pick(['Consider adding a formative check tied directly to the standard\'s success criteria.', 'Consider explicitly naming the standard/objective for students at the start of the lesson.', 'Consider strengthening the independent practice section to match the standard\'s rigor.'])}
+
+## Suggested Improvements
+1. ${pick(['Add a closing task where students self-assess against the standard.', 'Rephrase the lesson objective to mirror the standard\'s exact language.', 'Include one higher-order question requiring justification.'])}
+2. ${pick(['Add a worked example demonstrating the exact skill named in the standard.', 'Build in a checkpoint roughly halfway through the lesson.', 'Add a rubric line item mapping directly to the standard.'])}`);
+      setResult(content);
     } catch (err) { toast.error(err.message); }
     finally { setLoading(false); }
   };

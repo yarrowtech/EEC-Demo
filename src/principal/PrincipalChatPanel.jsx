@@ -21,6 +21,90 @@ import {
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
+// Demo mode: there is no live chat backend, so replies are generated locally.
+// This keeps the panel feeling alive without depending on a real socket/API.
+const REPLY_OPENERS = [
+  'Thanks for reaching out, Principal.',
+  'Good to hear from you.',
+  'Appreciate you checking in on this.',
+  'Noted, thank you.',
+  'Thanks for flagging this.',
+];
+
+const REPLY_BODIES_BY_TOPIC = [
+  {
+    match: /grade|score|mark|exam|result|performance/i,
+    lines: [
+      'The latest unit test scores are in — class average is holding steady around 82%, with a handful of students needing extra support in problem-solving sections.',
+      'I have reviewed the recent assessment data and will share a breakdown by section before the end of the week.',
+      'Most students are tracking well against the term targets; I will flag any who are falling behind separately.',
+    ],
+  },
+  {
+    match: /attendance|absent|present/i,
+    lines: [
+      'Attendance this month is at about 94%, slightly above last month. I will send the exact register if you need it for the board report.',
+      'A few students have had repeated absences — I have already reached out to their parents and will keep you posted.',
+      'Overall attendance looks healthy; I will flag any student crossing the 75% threshold immediately.',
+    ],
+  },
+  {
+    match: /fee|payment|due|invoice/i,
+    lines: [
+      'I will check with the accounts desk and confirm the outstanding fee status for that batch by tomorrow.',
+      'Most parents in my class have cleared dues for this term; only two families have pending reminders sent.',
+      'I can loop in the admin office if this needs a formal reminder to be sent out.',
+    ],
+  },
+  {
+    match: /meeting|ptm|schedule|time|available/i,
+    lines: [
+      'I am free tomorrow afternoon after 2 PM, or Thursday morning — whichever works better for you.',
+      'Happy to set up a meeting. I will block a slot and send a calendar invite shortly.',
+      'Let me check my class schedule and confirm a time within the hour.',
+    ],
+  },
+  {
+    match: /homework|assignment|syllabus|lesson|curriculum/i,
+    lines: [
+      'The lesson plan for this unit is on track; I expect to wrap up the syllabus portion a week ahead of schedule.',
+      'I have assigned the next set of homework and will share submission stats once collected.',
+      'The curriculum pacing looks good — no concerns to report at this stage.',
+    ],
+  },
+  {
+    match: /announcement|notice|circular|event/i,
+    lines: [
+      'I will make sure this announcement is read out in class and shared with parents through the notice board.',
+      'Noted — I will circulate this to my students and confirm once it has been communicated.',
+      'Thanks, I will add this to tomorrow morning\'s briefing with the class.',
+    ],
+  },
+];
+
+const REPLY_FALLBACKS = [
+  'I will look into this and get back to you with specifics shortly.',
+  'Understood — I will follow up on this today and update you.',
+  'Let me check with the students on this and revert by end of day.',
+  'I will compile the details and share them with you soon.',
+];
+
+const REPLY_CLOSERS = [
+  'Let me know if you need anything else.',
+  'Happy to discuss further if needed.',
+  'I will keep you updated on this.',
+  'Do let me know if this needs escalation.',
+];
+
+const pickOne = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+const generateTeacherReply = (teacherName, userText) => {
+  const topic = REPLY_BODIES_BY_TOPIC.find((t) => t.match.test(userText || ''));
+  const body = topic ? pickOne(topic.lines) : pickOne(REPLY_FALLBACKS);
+  const signature = teacherName ? `\n\n— ${teacherName}` : '';
+  return `${pickOne(REPLY_OPENERS)} ${body} ${pickOne(REPLY_CLOSERS)}${signature}`;
+};
+
 const PrincipalChatPanel = () => {
   const [me, setMe] = useState(null);
   const [contacts, setContacts] = useState([]);
@@ -187,13 +271,34 @@ const PrincipalChatPanel = () => {
 
   const sendMessage = useCallback(async () => {
     const text = draft.trim();
-    if (!text || !activeThreadId) return;
+    const threadId = activeThreadId;
+    if (!text || !threadId) return;
     setDraft('');
     setSending(true);
     setChatError('');
+
+    const teacherName = threadsRef.current.find(
+      (t) => String(t._id) === String(threadId)
+    )?.otherParticipant?.name || 'Teacher';
+
+    // Optimistically show the principal's own message immediately — the demo
+    // environment has no live chat backend, so we don't depend on the network
+    // round-trip to render it.
+    const localMsg = {
+      _id: `local-${Date.now()}`,
+      threadId,
+      senderId: meRef.current?.id,
+      text,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, localMsg]);
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
+
     try {
       const encrypted = await encryptChatMessage({
-        threadId: activeThreadId,
+        threadId,
         text,
         myId: meRef.current?.id,
         apiFetch,
@@ -201,22 +306,38 @@ const PrincipalChatPanel = () => {
       const payload = encrypted
         ? { text: '', encrypted }
         : { text };
-      const msg = await apiFetch(`/api/chat/threads/${activeThreadId}/messages`, {
+      await apiFetch(`/api/chat/threads/${threadId}/messages`, {
         method: 'POST',
         body: JSON.stringify(payload),
       });
-      const hydrated = await decryptMessage(msg);
-      setMessages((prev) => [...prev, hydrated]);
       refreshThreads();
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 50);
-    } catch (err) {
-      setChatError(err.message || 'Unable to send message');
+    } catch {
+      // No live backend in this demo — the message still shows locally above.
     } finally {
       setSending(false);
     }
-  }, [draft, activeThreadId, apiFetch, decryptMessage, refreshThreads]);
+
+    // Simulate the teacher replying after a short, human-like delay.
+    const delay = 800 + Math.random() * 700;
+    setTimeout(() => {
+      const reply = {
+        _id: `local-reply-${Date.now()}`,
+        threadId,
+        senderId: `${threadId}-teacher`,
+        text: generateTeacherReply(teacherName, text),
+        createdAt: new Date().toISOString(),
+      };
+      setMessages((prev) => (String(activeThreadId) === String(threadId) ? [...prev, reply] : prev));
+      setThreads((prev) => prev.map((t) => (
+        String(t._id) === String(threadId)
+          ? { ...t, lastMessage: reply.text, lastMessageAt: reply.createdAt }
+          : t
+      )));
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 50);
+    }, delay);
+  }, [draft, activeThreadId, apiFetch]);
 
   useEffect(() => {
     threadsRef.current = threads;

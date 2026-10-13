@@ -1,9 +1,33 @@
 import React, { useState } from "react";
 
+// Mock "AI" review phrases for uploaded submissions — picked at random so
+// repeated uploads don't all read identically. No backend involved.
+const AI_STRENGTHS = [
+  "clear structure and logical flow",
+  "good use of relevant examples",
+  "neat presentation and legible handwriting/formatting",
+  "accurate use of key terminology",
+  "a well-organized introduction and conclusion",
+];
+const AI_IMPROVEMENTS = [
+  "adding a bit more detail to support your main points",
+  "double-checking spelling and grammar before submitting",
+  "including a short summary at the end",
+  "citing where your information came from",
+  "making sure every section directly answers the prompt",
+];
+const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const pickTwoRandom = (arr) => {
+  const shuffled = [...arr].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 2);
+};
+
 function FileUpload({ isTeacherMode = false }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [rubric, setRubric] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [aiFeedback, setAiFeedback] = useState(null);
 
   const handleChange = (e) => {
     const selected = e.target.files[0];
@@ -18,15 +42,31 @@ function FileUpload({ isTeacherMode = false }) {
     } else {
       setPreview(null);
     }
+    setAiFeedback(null);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!file) {
+      setAiFeedback(null);
       alert("Please select a file first!");
       return;
     }
-    alert(`Selected file: ${file.name}`);
+    setAnalyzing(true);
+    setAiFeedback(null);
+    setTimeout(() => {
+      const strengths = pickTwoRandom(AI_STRENGTHS);
+      const improvement = pickRandom(AI_IMPROVEMENTS);
+      const score = 72 + Math.floor(Math.random() * 24); // 72-95
+      setAiFeedback({
+        fileName: file.name,
+        score,
+        summary: `Your submission "${file.name}" has been reviewed. Overall this looks like solid work.`,
+        strengths,
+        improvement,
+      });
+      setAnalyzing(false);
+    }, 1000 + Math.random() * 400);
   };
 
   return (
@@ -108,11 +148,36 @@ function FileUpload({ isTeacherMode = false }) {
         <div className="text-center">
           <button
             type="submit"
-            className="px-6 py-2 bg-purple-600 text-white font-semibold rounded-md hover:bg-purple-700 transition"
+            disabled={analyzing}
+            className="px-6 py-2 bg-purple-600 text-white font-semibold rounded-md hover:bg-purple-700 transition disabled:opacity-60"
           >
-            Upload File
+            {analyzing ? "Analyzing..." : "Upload File"}
           </button>
         </div>
+
+        {analyzing && (
+          <div className="mt-4 flex items-center justify-center gap-2 text-sm text-purple-700">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-purple-300 border-t-purple-600" />
+            AI is reviewing your submission...
+          </div>
+        )}
+
+        {aiFeedback && (
+          <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg text-sm text-black space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold">AI Review</span>
+              <span className="font-bold text-purple-700">{aiFeedback.score}/100</span>
+            </div>
+            <p>{aiFeedback.summary}</p>
+            <div>
+              <p className="font-medium">Strengths:</p>
+              <ul className="list-disc list-inside">
+                {aiFeedback.strengths.map((s) => <li key={s}>{s}</li>)}
+              </ul>
+            </div>
+            <p><span className="font-medium">Suggestion:</span> Try {aiFeedback.improvement}.</p>
+          </div>
+        )}
       </form>
     </div>
   );

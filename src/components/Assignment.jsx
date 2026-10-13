@@ -63,6 +63,70 @@ const SURFACE_HOVER = 'transition-all duration-200 ease-out hover:-translate-y-0
 const ALLOWED_SUBMISSION_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
 const ALLOWED_SUBMISSION_EXTENSIONS = /\.(pdf|jpe?g|png|webp|heic|heif)$/i;
 
+// Mock "AI-generated" flashcard banks, grouped by subject. Used by the
+// Flashcards tab to simulate an AI producing study cards for the selected
+// class/subject — no backend required.
+const FLASHCARD_BANKS = {
+  Mathematics: [
+    { term: 'Prime Number', def: 'A number greater than 1 with no divisors other than 1 and itself.' },
+    { term: 'Fraction', def: 'A way of representing a part of a whole using a numerator and denominator.' },
+    { term: 'Perimeter', def: 'The total distance around the edge of a shape.' },
+    { term: 'Area', def: 'The amount of surface a two-dimensional shape covers.' },
+    { term: 'Variable', def: 'A symbol, usually a letter, that represents an unknown value.' },
+    { term: 'Equation', def: 'A mathematical statement that two expressions are equal.' },
+    { term: 'Integer', def: 'A whole number that can be positive, negative, or zero.' },
+    { term: 'Ratio', def: 'A comparison of two quantities by division.' },
+    { term: 'Mean', def: 'The average of a set of numbers, found by summing and dividing by the count.' },
+    { term: 'Angle', def: 'The figure formed by two rays sharing a common endpoint, measured in degrees.' },
+  ],
+  Science: [
+    { term: 'Photosynthesis', def: 'The process by which plants convert sunlight into chemical energy.' },
+    { term: 'Cell', def: 'The basic structural and functional unit of all living organisms.' },
+    { term: 'Force', def: 'A push or pull that can change the motion of an object.' },
+    { term: 'Ecosystem', def: 'A community of living organisms interacting with their environment.' },
+    { term: 'Atom', def: 'The smallest unit of matter that retains the properties of an element.' },
+    { term: 'Gravity', def: 'The force that attracts objects toward one another, notably toward Earth.' },
+    { term: 'Evaporation', def: 'The process of a liquid changing into a gas.' },
+    { term: 'Friction', def: 'A resistive force that opposes relative motion between surfaces.' },
+    { term: 'Habitat', def: "The natural environment in which an organism lives." },
+    { term: 'Energy', def: 'The capacity to do work, existing in forms like kinetic and potential.' },
+  ],
+  English: [
+    { term: 'Metaphor', def: 'A figure of speech that describes something by calling it another thing.' },
+    { term: 'Simile', def: 'A comparison using "like" or "as" between two unlike things.' },
+    { term: 'Noun', def: 'A word that names a person, place, thing, or idea.' },
+    { term: 'Verb', def: 'A word that expresses an action, occurrence, or state of being.' },
+    { term: 'Synonym', def: 'A word that has nearly the same meaning as another word.' },
+    { term: 'Antonym', def: 'A word that means the opposite of another word.' },
+    { term: 'Adjective', def: 'A word that describes or modifies a noun.' },
+    { term: 'Alliteration', def: 'The repetition of the same initial sound in nearby words.' },
+    { term: 'Protagonist', def: 'The main character in a story, often driving the plot forward.' },
+    { term: 'Theme', def: "The central idea or underlying message of a piece of writing." },
+  ],
+  'Social Studies': [
+    { term: 'Democracy', def: 'A system of government where citizens vote to choose leaders.' },
+    { term: 'Constitution', def: 'A set of fundamental principles by which a country is governed.' },
+    { term: 'Latitude', def: 'Imaginary lines that measure distance north or south of the equator.' },
+    { term: 'Monsoon', def: 'A seasonal wind that brings heavy rainfall to a region.' },
+    { term: 'Civilization', def: 'A complex society with cities, government, and culture.' },
+    { term: 'Trade', def: 'The exchange of goods and services between people or nations.' },
+    { term: 'Colonization', def: 'The act of establishing control over a foreign territory.' },
+    { term: 'Federalism', def: 'A system of government where power is shared between central and state authorities.' },
+    { term: 'Revolution', def: 'A fundamental and often sudden change in political power or organization.' },
+    { term: 'Economy', def: 'The system of production, distribution, and consumption of goods and services.' },
+  ],
+};
+const FLASHCARD_SUBJECTS = Object.keys(FLASHCARD_BANKS);
+
+const shuffleArray = (arr) => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
 // Some browsers/OSes (notably Windows) report an empty or generic MIME type
 // for HEIC photos instead of "image/heic" — fall back to the file extension
 // so a real photo isn't rejected just because the type went unrecognized.
@@ -101,6 +165,8 @@ const Assignment = ({ assignmentType }) => {
   const [flashFlipped, setFlashFlipped] = useState(false);
   const [flashKnown, setFlashKnown] = useState({});
   const [flashShuffle, setFlashShuffle] = useState(false);
+  const [flashSubject, setFlashSubject] = useState(FLASHCARD_SUBJECTS[0]);
+  const [flashGenerating, setFlashGenerating] = useState(false);
 
   // EEC / Practice state
   const [selectedClass, setSelectedClass] = useState("6");
@@ -689,6 +755,45 @@ const Assignment = ({ assignmentType }) => {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [flashFlipped, assignmentType]);
+
+  // Simulates an AI generating a fresh flashcard deck for the chosen class
+  // and subject — picks from a mock content bank with a short "thinking"
+  // delay, purely client-side.
+  const generateFlashcards = () => {
+    setFlashGenerating(true);
+    setFlashDeck([]);
+    setFlashIndex(0);
+    setFlashFlipped(false);
+    setFlashKnown({});
+    setTimeout(() => {
+      const bank = FLASHCARD_BANKS[flashSubject] || FLASHCARD_BANKS[FLASHCARD_SUBJECTS[0]];
+      const deck = shuffleArray(bank).map((card, idx) => ({ id: idx, ...card }));
+      setFlashDeck(deck);
+      setFlashGenerating(false);
+    }, 900 + Math.random() * 400);
+  };
+
+  const flashCurrentCard = flashDeck[flashIndex] || null;
+  const flashGoNext = () => {
+    if (!flashDeck.length) return;
+    setFlashFlipped(false);
+    setFlashIndex((i) => (i + 1) % flashDeck.length);
+  };
+  const flashGoPrev = () => {
+    if (!flashDeck.length) return;
+    setFlashFlipped(false);
+    setFlashIndex((i) => (i - 1 + flashDeck.length) % flashDeck.length);
+  };
+  const flashMarkKnown = (known) => {
+    if (!flashCurrentCard) return;
+    setFlashKnown((prev) => ({ ...prev, [flashCurrentCard.id]: known }));
+    flashGoNext();
+  };
+  const flashReshuffle = () => {
+    setFlashDeck((prev) => shuffleArray(prev));
+    setFlashIndex(0);
+    setFlashFlipped(false);
+  };
 
   const loadPracticeMeta = async () => {
     const token = localStorage.getItem('token');
@@ -1550,11 +1655,86 @@ const Assignment = ({ assignmentType }) => {
               <option value="9">Class 9</option>
               <option value="10">Class 10</option>
             </select>
+            <label htmlFor="fcSubject" className="font-medium text-[#334155] ml-2">Subject:</label>
+            <select
+              id="fcSubject"
+              value={flashSubject}
+              onChange={e => setFlashSubject(e.target.value)}
+              className={`${SURFACE_INNER} px-3 py-2 focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500/60 outline-none text-sm text-[#0f172a]`}
+            >
+              {FLASHCARD_SUBJECTS.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <button
+              type="button"
+              onClick={generateFlashcards}
+              disabled={flashGenerating}
+              className="ml-auto inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-md shadow-violet-600/30 transition-colors hover:bg-violet-700 disabled:opacity-60"
+            >
+              {flashGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Layers className="h-4 w-4" />}
+              {flashGenerating ? 'Generating...' : flashDeck.length ? 'Regenerate Deck' : 'Generate Flashcards'}
+            </button>
           </div>
-          <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-violet-500/30 py-14 text-center">
-            <Layers className="h-9 w-9 text-violet-300" />
-            <p className="text-[#64748b] text-sm font-medium">Flashcard functionality coming soon!</p>
-          </div>
+
+          {flashGenerating ? (
+            <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-violet-500/30 py-14 text-center">
+              <Loader2 className="h-9 w-9 text-violet-400 animate-spin" />
+              <p className="text-[#64748b] text-sm font-medium">AI is generating {flashSubject} flashcards for Class {selectedClass}...</p>
+            </div>
+          ) : !flashDeck.length ? (
+            <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-violet-500/30 py-14 text-center">
+              <Layers className="h-9 w-9 text-violet-300" />
+              <p className="text-[#64748b] text-sm font-medium">Pick a subject and generate an AI flashcard deck to start studying.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-5">
+              <div className="flex w-full items-center justify-between text-sm font-semibold text-[#64748b]">
+                <span>Card {flashIndex + 1} of {flashDeck.length}</span>
+                <span>{Object.values(flashKnown).filter(Boolean).length} known</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setFlashFlipped(!flashFlipped)}
+                className="relative flex h-56 w-full max-w-lg cursor-pointer items-center justify-center rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-8 text-center shadow-sm transition-transform hover:-translate-y-0.5"
+              >
+                <div>
+                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-wider text-violet-400">
+                    {flashFlipped ? 'Definition' : 'Term'}
+                  </span>
+                  <p className="text-xl font-bold text-[#0f172a]">
+                    {flashFlipped ? flashCurrentCard.def : flashCurrentCard.term}
+                  </p>
+                  <span className="mt-3 block text-xs text-[#94a3b8]">Click card or press space to flip</span>
+                </div>
+              </button>
+
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={flashGoPrev} className={`${SURFACE_INNER} px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-violet-50`}>
+                  <ChevronDown className="h-4 w-4 rotate-90" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => flashMarkKnown(false)}
+                  className="rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-100"
+                >
+                  Still Learning
+                </button>
+                <button
+                  type="button"
+                  onClick={() => flashMarkKnown(true)}
+                  className="rounded-xl bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-600 hover:bg-emerald-100"
+                >
+                  I Know This
+                </button>
+                <button type="button" onClick={flashGoNext} className={`${SURFACE_INNER} px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-violet-50`}>
+                  <ChevronDown className="h-4 w-4 -rotate-90" />
+                </button>
+              </div>
+              <button type="button" onClick={flashReshuffle} className="text-xs font-semibold text-violet-500 hover:underline">
+                Shuffle deck
+              </button>
+            </div>
+          )}
         </div>
       )}
 

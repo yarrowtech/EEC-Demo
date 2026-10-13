@@ -18,6 +18,86 @@ const authHeaders = () => ({
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
+// MOCK AI GENERATORS (client-side only — no backend, no external calls)
+// ═════════════════════════════════════════════════════════════════════════════
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const pickN = (arr, n) => {
+  const shuffled = [...arr].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, Math.min(n, shuffled.length));
+};
+const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+const mockGenerateLearningPath = (subject = 'Mathematics', weakAreas = [], currentLevel = 'basic') => {
+  const areas = weakAreas.length ? weakAreas : ['Core Concepts', 'Problem Solving', 'Application Skills'];
+  const resourceTypes = ['Interactive video lesson', 'Guided worksheet', 'Practice quiz', 'Peer study session', 'Concept walkthrough', 'Real-world application task'];
+  const durations = ['15 min', '20 min', '25 min', '30 min', '40 min'];
+  const difficultyBySteps = currentLevel === 'advanced' ? ['Intermediate', 'Advanced', 'Mastery'] : currentLevel === 'intermediate' ? ['Foundational', 'Intermediate', 'Advanced'] : ['Foundational', 'Building Confidence', 'Intermediate'];
+
+  const steps = areas.slice(0, 4).map((area, i) => ({
+    step: i + 1,
+    topic: area,
+    activity: pick(resourceTypes),
+    duration: pick(durations),
+    difficulty: difficultyBySteps[Math.min(i, difficultyBySteps.length - 1)],
+  }));
+
+  return {
+    subject,
+    currentLevel,
+    estimatedWeeks: randInt(2, 5),
+    projectedImprovement: randInt(8, 22),
+    steps,
+    generatedAt: new Date().toISOString(),
+  };
+};
+
+const mockGenerateMisconceptionReport = (subjectLabel, patterns = []) => {
+  const openers = [
+    `Reviewing the last set of assessments for ${subjectLabel}, a few recurring misconception patterns stand out.`,
+    `Across recent submissions in ${subjectLabel}, several students are converging on the same incorrect reasoning paths.`,
+    `The wrong-answer data for ${subjectLabel} points to a handful of conceptual gaps worth addressing in class.`,
+  ];
+  const closers = [
+    'A short re-teach segment on these specific points, followed by targeted practice, should close most of this gap within a week.',
+    'Consider a 10-minute warm-up quiz next session focused on these exact misconceptions before moving to new material.',
+    'Pairing struggling students with peers who answered correctly for a short discussion activity tends to resolve these quickly.',
+  ];
+  const causeTemplates = [
+    (t) => `Students appear to be over-generalizing a rule from an earlier unit and applying it incorrectly to "${t}".`,
+    (t) => `The wording of questions on "${t}" seems to be causing a surface-level misread rather than a true conceptual gap.`,
+    (t) => `There is a common calculation shortcut being used for "${t}" that works in some cases but fails here.`,
+    (t) => `Many students are skipping an intermediate step when working through "${t}", leading to the same wrong answer.`,
+  ];
+
+  const topicLines = (patterns.length ? patterns : [{ topic: 'General concepts', wrongAnswer: 'n/a', count: 0, pct: 0 }])
+    .slice(0, 5)
+    .map((p, i) => {
+      const pct = p.pct ? Math.round(p.pct) : randInt(18, 45);
+      return `${i + 1}. ${p.topic || 'Untitled topic'} — ${pct}% of incorrect responses selected "${p.wrongAnswer}" (${p.count || randInt(3, 20)} students). ${pick(causeTemplates)(p.topic || 'this topic')}`;
+    });
+
+  return `${pick(openers)}\n\n${topicLines.join('\n\n')}\n\n${pick(closers)}`;
+};
+
+const mockGenerateCohortReport = (className, section) => {
+  const label = `${className || 'the class'}${section ? '-' + section : ''}`;
+  const avgScore = randInt(62, 88);
+  const trendPct = randInt(2, 14);
+  const trendDir = pick(['up', 'up', 'down']);
+  const engagement = randInt(55, 92);
+  const atRiskPct = randInt(5, 25);
+  const strongTopics = pickN(['Fractions', 'Algebraic Expressions', 'Reading Comprehension', 'Grammar', 'Cell Biology', 'Newton\'s Laws', 'Geometry', 'Data Handling'], 2);
+  const weakTopics = pickN(['Word Problems', 'Long Division', 'Essay Structure', 'Chemical Equations', 'Trigonometry', 'Probability'], 2);
+
+  return `Over the last 30 days, ${label} has averaged ${avgScore}% across all assessments, ` +
+    `${trendDir === 'up' ? `an improvement of ${trendPct} percentage points` : `a dip of ${trendPct} percentage points`} compared to the previous period.\n\n` +
+    `Engagement is holding at ${engagement}%, with roughly ${atRiskPct}% of students showing at-risk indicators such as declining submission rates or repeated low scores.\n\n` +
+    `Students are performing strongly in ${strongTopics.join(' and ')}, consistently scoring above the class average. ` +
+    `The clearest opportunity for improvement is in ${weakTopics.join(' and ')}, where response patterns suggest a shared conceptual gap rather than isolated struggles.\n\n` +
+    `Recommended next step: a short focused review block on ${weakTopics[0]} in the coming week, paired with continued reinforcement of ${strongTopics[0]} through mixed practice sets.`;
+};
+
+// ═════════════════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
 // ═════════════════════════════════════════════════════════════════════════════
 const getScoreColor = (score) => {
@@ -384,30 +464,21 @@ const StudentAnalyticsPortal = () => {
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  // GENERATE LEARNING PATH
+  // GENERATE LEARNING PATH (mock — client-side, no backend)
   // ─────────────────────────────────────────────────────────────────────────
-  const generateLearningPath = async (studentId, subject, weakAreas, currentLevel) => {
-    try {
-      const response = await fetch(`${API_BASE}/api/ai-learning/generate-learning-path/${studentId}`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ subject, weakAreas, currentLevel })
-      });
+  const [generatingLearningPath, setGeneratingLearningPath] = useState(false);
 
-      if (response.ok) {
-        await response.json();
-        alert('AI Learning Path generated successfully!');
-        setSelectedWeakStudent(prev => ({
-          ...prev,
-          hasAIPath: true
-        }));
-      } else {
-        throw new Error('Failed to generate learning path');
-      }
-    } catch (error) {
-      console.error('Error generating learning path:', error);
-      alert('Failed to generate learning path. Please try again.');
-    }
+  const generateLearningPath = (studentId, subject, weakAreas, currentLevel) => {
+    setGeneratingLearningPath(true);
+    setTimeout(() => {
+      const path = mockGenerateLearningPath(subject, weakAreas, currentLevel);
+      setSelectedWeakStudent(prev => ({
+        ...prev,
+        hasAIPath: true,
+        aiLearningPath: path,
+      }));
+      setGeneratingLearningPath(false);
+    }, 900 + Math.random() * 500);
   };
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -425,24 +496,20 @@ const StudentAnalyticsPortal = () => {
     } catch { /* silent */ } finally { setLoadingMisconceptions(false); }
   }, [misconceptionFilters]);
 
-  const generateAIMisconceptionReport = async () => {
+  const generateAIMisconceptionReport = () => {
     if (!misconceptions.length) { return; }
     setGeneratingMisconceptionReport(true);
-    try {
-      const patterns = misconceptions.slice(0, 10).map((m) => ({
-        topic: m.topic,
-        wrongAnswer: m.topWrongAnswers?.[0]?.answer || '(unknown)',
-        count: m.totalWrong,
-        pct: m.pct,
-      }));
-      const res = await fetch(`${API_BASE}/api/ai-teacher/misconception-report`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ subject: misconceptionFilters.subject || `Grade ${ctxGrade}${ctxSection ? '-' + ctxSection : ''}`, wrongAnswerPatterns: patterns }),
-      });
-      const data = await res.json().catch(() => ({}));
-      setAiMisconceptionReport(data?.data?.content || '');
-    } catch { /* silent */ } finally { setGeneratingMisconceptionReport(false); }
+    const patterns = misconceptions.slice(0, 10).map((m) => ({
+      topic: m.topic,
+      wrongAnswer: m.topWrongAnswers?.[0]?.answer || '(unknown)',
+      count: m.totalWrong,
+      pct: m.pct,
+    }));
+    const subjectLabel = misconceptionFilters.subject || `Grade ${ctxGrade}${ctxSection ? '-' + ctxSection : ''}`;
+    setTimeout(() => {
+      setAiMisconceptionReport(mockGenerateMisconceptionReport(subjectLabel, patterns));
+      setGeneratingMisconceptionReport(false);
+    }, 900 + Math.random() * 500);
   };
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1634,6 +1701,7 @@ const InterventionTab = ({
           student={selectedWeakStudent}
           onClose={() => setSelectedWeakStudent(null)}
           generateLearningPath={generateLearningPath}
+          generatingLearningPath={generatingLearningPath}
         />
       )}
     </div>
@@ -1779,7 +1847,9 @@ const StudentDetailModal = ({ student, onClose }) => {
 // ═════════════════════════════════════════════════════════════════════════════
 // WEAK STUDENT DETAIL MODAL
 // ═════════════════════════════════════════════════════════════════════════════
-const WeakStudentDetailModal = ({ student, onClose, generateLearningPath }) => (
+const WeakStudentDetailModal = ({ student, onClose, generateLearningPath, generatingLearningPath }) => {
+  const [showPathDetails, setShowPathDetails] = useState(false);
+  return (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={onClose}>
     <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border-[2.5px] border-purple-300" onClick={(e) => e.stopPropagation()}>
       <div className="p-6 border-b border-purple-200">
@@ -1865,10 +1935,29 @@ const WeakStudentDetailModal = ({ student, onClose, generateLearningPath }) => (
                 </div>
                 <p className="text-sm text-blue-700 mb-3">
                   Personalized learning path has been generated based on weakness analysis.
+                  {student.aiLearningPath && (
+                    <> Estimated {student.aiLearningPath.estimatedWeeks} weeks to a projected +{student.aiLearningPath.projectedImprovement}% improvement.</>
+                  )}
                 </p>
-                <button className="w-full bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700 transition-colors font-semibold">
-                  View Learning Path
+                <button
+                  onClick={() => setShowPathDetails((v) => !v)}
+                  className="w-full bg-blue-600 text-white py-2 rounded-xl hover:bg-blue-700 transition-colors font-semibold"
+                >
+                  {showPathDetails ? 'Hide Learning Path' : 'View Learning Path'}
                 </button>
+                {showPathDetails && student.aiLearningPath && (
+                  <div className="mt-3 space-y-2">
+                    {student.aiLearningPath.steps.map((step) => (
+                      <div key={step.step} className="bg-white rounded-lg border border-blue-200 p-3 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-blue-900">Step {step.step}: {step.topic}</span>
+                          <span className="text-[11px] font-medium text-blue-500">{step.difficulty}</span>
+                        </div>
+                        <p className="text-gray-600 text-xs mt-1">{step.activity} · {step.duration}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="bg-purple-50 rounded-xl p-4 text-center border-[2px] border-purple-200">
@@ -1881,9 +1970,10 @@ const WeakStudentDetailModal = ({ student, onClose, generateLearningPath }) => (
                     student.weakAreas || [],
                     'basic'
                   )}
-                  className="bg-purple-600 text-white px-4 py-2 rounded-xl hover:bg-purple-700 transition-colors font-semibold"
+                  disabled={generatingLearningPath}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-xl hover:bg-purple-700 transition-colors font-semibold disabled:opacity-60"
                 >
-                  Generate AI Learning Path
+                  {generatingLearningPath ? 'Generating…' : 'Generate AI Learning Path'}
                 </button>
               </div>
             )}
@@ -1892,7 +1982,8 @@ const WeakStudentDetailModal = ({ student, onClose, generateLearningPath }) => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
 // ═════════════════════════════════════════════════════════════════════════════
 // MISCONCEPTIONS TAB
@@ -2818,15 +2909,10 @@ const CohortReportSubPanel = ({ ctxGrade, ctxSection }) => {
 
   const generate = () => {
     setGenerating(true);
-    fetch(`${API_BASE}/api/ai-teacher/cohort-report`, {
-      method: 'POST',
-      headers: { ...authHeaders() },
-      body: JSON.stringify({ className: ctxGrade, section: ctxSection }),
-    })
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => setReport(d?.data?.content || 'No report generated.'))
-      .catch(() => setReport('Failed to generate report.'))
-      .finally(() => setGenerating(false));
+    setTimeout(() => {
+      setReport(mockGenerateCohortReport(ctxGrade, ctxSection));
+      setGenerating(false);
+    }, 900 + Math.random() * 500);
   };
 
   return (

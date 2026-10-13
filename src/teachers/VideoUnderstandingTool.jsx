@@ -1,13 +1,63 @@
 import React, { useState } from 'react';
 import { Video, Upload, Loader2, FileText, Tag, ListChecks } from 'lucide-react';
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
-
-const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('token') || ''}` });
-
 // Teacher tool: upload a lecture video, get back a transcript, an AI summary,
-// and a quiz — all derived from the video's audio track (see ai-service
-// app/modules/video/service.py for the audio-only scope decision).
+// and a quiz. This is a frontend-only demo with no AI backend — the "upload"
+// progress and the "analysis" below are both simulated locally, and the
+// summary/quiz/transcript are generated from the video's file name so the
+// output still feels tied to what was picked.
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+const titleFromFileName = (name) => {
+  const base = name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').trim();
+  return base ? base.replace(/\b\w/g, (c) => c.toUpperCase()) : 'Lecture Recording';
+};
+
+const KEYWORD_POOL = [
+  'key concept', 'worked example', 'definitions', 'class discussion', 'recap',
+  'homework', 'assessment prep', 'common mistakes', 'real-world application',
+];
+
+const generateMockVideoAnalysis = (fileName) => {
+  const topic = titleFromFileName(fileName);
+  const durationSeconds = 300 + Math.floor(Math.random() * 1500);
+  const keywords = [...KEYWORD_POOL].sort(() => Math.random() - 0.5).slice(0, 4);
+  const summary = `This lecture on "${topic}" opens with a quick recap of prior material before introducing the main concept through a worked example. The teacher walks through the reasoning step by step, pausing to address a common misconception (${pick(['mixing up the order of operations', 'over-generalising from a single case', 'confusing correlation with causation', 'skipping a required step'])}), then opens the floor for student questions. The session closes with a short recap and a preview of the next topic.`;
+  const quiz = `1. What is the main topic covered in this lecture?
+   A) ${topic}
+   B) An unrelated review session
+   C) A guest lecture on a different subject
+   D) A test-taking strategies session
+   Answer: A
+
+2. Which teaching technique did the instructor use to introduce the topic?
+   A) A worked example walked through step by step
+   B) A silent reading assignment
+   C) A pop quiz with no explanation
+   D) A video with no narration
+   Answer: A
+
+3. What common mistake did the teacher warn students about?
+   A) ${pick(['Mixing up the order of operations', 'Over-generalising from a single example', 'Confusing correlation with causation', 'Skipping a required step'])}
+   B) Using a calculator
+   C) Writing too much detail
+   D) Reading too quickly
+   Answer: A
+
+4. How did the lecture conclude?
+   A) With a recap and a preview of the next topic
+   B) Abruptly with no summary
+   C) With an unrelated announcement
+   D) With a pop quiz
+   Answer: A`;
+  const transcript = `[00:00] Good morning everyone, today we're covering ${topic}. Let's start with a quick recap of what we covered last time.
+[02:15] Now, the key idea here is to walk through this step by step — watch closely as I work through this example.
+[07:40] A lot of students get tripped up here by ${pick(['mixing up the order of operations', 'over-generalising from a single example', 'confusing correlation with causation'])}, so let's slow down on this part.
+[15:20] Great questions from the back row — let's open this up for discussion for a couple of minutes.
+[${Math.floor(durationSeconds / 60) - 2}:00] To wrap up, remember the main takeaway from today: ${topic} builds directly on what we'll need for the next unit. See you next class.`;
+  return { summary, quiz, transcript, keywords, duration_seconds: durationSeconds };
+};
+
 const VideoUnderstandingTool = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -16,33 +66,19 @@ const VideoUnderstandingTool = () => {
   const [result, setResult] = useState(null);
   const [fileName, setFileName] = useState('');
 
-  const uploadVideo = (file) => new Promise((resolve, reject) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('folder', 'lecture_videos');
-    formData.append('tags', 'lecture_video,video_understanding');
-
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', `${API_BASE}/api/uploads/cloudinary/single`);
-    xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('token') || ''}`);
-    xhr.upload.onprogress = (event) => {
-      if (!event.lengthComputable) return;
-      setUploadProgress(Math.max(1, Math.min(99, Math.round((event.loaded / event.total) * 100))));
-    };
-    xhr.onload = () => {
-      try {
-        const data = JSON.parse(xhr.responseText || '{}');
-        if (xhr.status >= 200 && xhr.status < 300 && data?.files?.[0]?.secure_url) {
-          resolve(data.files[0].secure_url);
-        } else {
-          reject(new Error(data?.message || 'Upload failed'));
-        }
-      } catch {
-        reject(new Error('Upload failed'));
+  // Simulated upload progress — no real network call, since this demo has
+  // no backend to receive the file.
+  const simulateUpload = () => new Promise((resolve) => {
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress = Math.min(99, progress + 8 + Math.random() * 12);
+      setUploadProgress(Math.round(progress));
+      if (progress >= 99) {
+        clearInterval(interval);
+        setUploadProgress(100);
+        resolve();
       }
-    };
-    xhr.onerror = () => reject(new Error('Upload failed'));
-    xhr.send(formData);
+    }, 120);
   });
 
   const handleFile = async (file) => {
@@ -53,17 +89,13 @@ const VideoUnderstandingTool = () => {
     setUploading(true);
     setUploadProgress(0);
     try {
-      const videoUrl = await uploadVideo(file);
+      await simulateUpload();
       setUploading(false);
       setAnalyzing(true);
-      const res = await fetch(`${API_BASE}/api/video/summarize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ videoUrl }),
+      const data = await new Promise((resolve) => {
+        setTimeout(() => resolve(generateMockVideoAnalysis(file.name)), 1200 + Math.random() * 600);
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || 'Video understanding failed');
-      setResult(data.data);
+      setResult(data);
     } catch (err) {
       setError(err.message || 'Something went wrong');
     } finally {

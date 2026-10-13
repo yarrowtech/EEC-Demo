@@ -15,6 +15,97 @@ import TryoutManagement from '../components/TryoutManagement';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
+// ═════════════════════════════════════════════════════════════════════════════
+// MOCK AI GENERATORS (client-side only — no backend, no external calls)
+// ═════════════════════════════════════════════════════════════════════════════
+const mockPick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const mockRandInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+const mockGenerateAssignmentDraft = ({ subject, topic, gradeLevel, difficulty, activityType, marks }) => {
+  const subjectLabel = subject || 'General Studies';
+  const topicLabel = topic || mockPick(['Core Concepts', 'Unit Review', 'Key Skills']);
+  const gradeLabel = gradeLevel || 'the class';
+  const difficultyLabel = difficulty || mockPick(['easy', 'medium', 'hard']);
+  const isEssay = activityType === 'Essay' || activityType === 'writing';
+
+  const titleTemplates = [
+    `${topicLabel}: A ${difficultyLabel} Practice Set`,
+    `Understanding ${topicLabel} — ${subjectLabel} Assignment`,
+    `${subjectLabel} Focus: ${topicLabel}`,
+    `${topicLabel} Application Challenge`,
+  ];
+
+  const descriptionOpeners = [
+    `This assignment asks students to demonstrate their understanding of ${topicLabel.toLowerCase()} in ${subjectLabel}.`,
+    `Designed for ${gradeLabel}, this task reinforces key ideas from ${topicLabel.toLowerCase()}.`,
+    `Students will apply what they've learned about ${topicLabel.toLowerCase()} through a series of structured tasks.`,
+  ];
+  const descriptionBodies = [
+    `Work through each section carefully, showing all reasoning steps where relevant. Aim for clear, well-organized answers.`,
+    `Answer in complete sentences and support each response with an example or explanation drawn from class material.`,
+    `Read each prompt closely before answering — partial credit is given for demonstrated reasoning, not just final answers.`,
+  ];
+  const closingLines = [
+    `This is a ${difficultyLabel}-difficulty task worth ${marks} marks.`,
+    `Allocate roughly ${mockRandInt(20, 45)} minutes to complete this ${difficultyLabel} task.`,
+    `Estimated marks: ${marks}. Difficulty level: ${difficultyLabel}.`,
+  ];
+
+  const essayRubricLines = [
+    'Content & ideas — 40%',
+    'Structure & organisation — 30%',
+    'Language, grammar & accuracy — 20%',
+    'Originality & voice — 10%',
+  ];
+
+  return {
+    title: mockPick(titleTemplates),
+    description: `${mockPick(descriptionOpeners)} ${mockPick(descriptionBodies)} ${mockPick(closingLines)}`,
+    marks,
+    difficulty: difficultyLabel,
+    submissionFormat: isEssay ? 'text' : undefined,
+    isEssay,
+    rubric: isEssay ? essayRubricLines.join('\n') : '',
+  };
+};
+
+const mockGenerateAiEvaluation = (submission) => {
+  const totalMarks = Number(submission?.totalMarks) || 100;
+  const rubricCriteria = String(submission?.rubric || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const criteriaLabels = rubricCriteria.length
+    ? rubricCriteria.map((line) => line.split('—')[0].split('-')[0].trim())
+    : ['Content & ideas', 'Structure & organisation', 'Language & accuracy'];
+
+  const strengthTemplates = [
+    (c) => `Strong grasp of ${c.toLowerCase()}, with clear and relevant supporting points.`,
+    (c) => `${c} is well handled — the response stays focused and on-topic throughout.`,
+    (c) => `Good effort on ${c.toLowerCase()}; ideas are logically sequenced.`,
+  ];
+  const improvementTemplates = [
+    (c) => `${c} could be strengthened with more specific examples or detail.`,
+    (c) => `Consider revising ${c.toLowerCase()} for clarity — a few points feel underdeveloped.`,
+    (c) => `${c} shows understanding but would benefit from tighter organisation.`,
+  ];
+
+  const strengths = criteriaLabels.slice(0, 2).map((c) => mockPick(strengthTemplates)(c));
+  const improvements = criteriaLabels.slice(-2).map((c) => mockPick(improvementTemplates)(c));
+
+  const pctScore = mockRandInt(62, 94);
+  const aiScore = Math.round((pctScore / 100) * totalMarks);
+
+  const feedback = [
+    `Overall, this submission demonstrates a solid understanding of the material (${pctScore}% against the rubric).`,
+    `Strengths: ${strengths.join(' ')}`,
+    `Areas to improve: ${improvements.join(' ')}`,
+    `Suggested score: ${aiScore}/${totalMarks}.`,
+  ].join('\n\n');
+
+  return { aiScore, aiGradingFeedback: feedback };
+};
+
 const toEntityId = (value) => {
   if (!value) return '';
   if (typeof value === 'object') return String(value._id || value.id || '');
@@ -629,10 +720,7 @@ const AssignmentPortal = ({ view = 'manage', notificationCount = 0, siblingNotif
     setShowModal(true);
   };
 
-  const handleGenerateAssignmentDraft = async () => {
-    const selectedSubject = subjectOptions.find(
-      (subject) => String(subject.name || '').trim().toLowerCase() === String(newAssignment.subject || '').trim().toLowerCase()
-    );
+  const handleGenerateAssignmentDraft = () => {
     const selectedClassSection = classSectionOptions.find(
       (item) => String(item.classId) === String(newAssignment.classId)
         && String(item.sectionId) === String(newAssignment.sectionId)
@@ -645,42 +733,35 @@ const AssignmentPortal = ({ view = 'manage', notificationCount = 0, siblingNotif
     setAiGeneratingAssignment(true);
     setAiAssignmentError('');
     setAiAssignmentGrounded(false);
-    try {
-      const { data } = await axios.post(
-        `${API_BASE_URL}/api/ai-teacher/assignment-draft`,
-        {
-          classId: newAssignment.classId,
-          sectionId: newAssignment.sectionId,
-          subjectId: selectedSubject?.id || null,
+    setTimeout(() => {
+      try {
+        const draft = mockGenerateAssignmentDraft({
           subject: newAssignment.subject,
-          topic: newAssignment.topic || '',
-          chapterTitle: newAssignment.chapterTitle || newAssignment.topic || '',
+          topic: newAssignment.topic || newAssignment.chapterTitle || '',
           gradeLevel: selectedClassSection?.className || '',
           difficulty: newAssignment.difficulty,
           activityType: newAssignment.type,
           marks: Number(newAssignment.marks) || 20,
-        },
-        { headers: { Authorization: `Bearer ${token()}` } }
-      );
-      const draft = data?.data?.draft;
-      if (!draft) throw new Error('AI response did not include a draft');
-      setNewAssignment((previous) => ({
-        ...previous,
-        title: draft.title || previous.title,
-        description: draft.description || previous.description,
-        marks: draft.marks || previous.marks,
-        difficulty: draft.difficulty || previous.difficulty,
-        // keep the teacher's chosen type — don't let AI override it
-        submissionFormat: draft.submissionFormat || previous.submissionFormat,
-        isEssay: Boolean(draft.isEssay),
-        rubric: draft.isEssay ? draft.rubric || '' : previous.rubric,
-      }));
-      setAiAssignmentGrounded(Boolean(data?.data?.groundedInMaterial));
-    } catch (err) {
-      setAiAssignmentError(err.response?.data?.error || err.message || 'Failed to generate draft');
-    } finally {
-      setAiGeneratingAssignment(false);
-    }
+        });
+        if (!draft) throw new Error('AI response did not include a draft');
+        setNewAssignment((previous) => ({
+          ...previous,
+          title: draft.title || previous.title,
+          description: draft.description || previous.description,
+          marks: draft.marks || previous.marks,
+          difficulty: draft.difficulty || previous.difficulty,
+          // keep the teacher's chosen type — don't let AI override it
+          submissionFormat: draft.submissionFormat || previous.submissionFormat,
+          isEssay: Boolean(draft.isEssay),
+          rubric: draft.isEssay ? draft.rubric || '' : previous.rubric,
+        }));
+        setAiAssignmentGrounded(true);
+      } catch (err) {
+        setAiAssignmentError(err.message || 'Failed to generate draft');
+      } finally {
+        setAiGeneratingAssignment(false);
+      }
+    }, 900 + Math.random() * 500);
   };
 
   const openActivityCreator = (activityType) => {
@@ -898,7 +979,7 @@ const AssignmentPortal = ({ view = 'manage', notificationCount = 0, siblingNotif
     setRubricSaveError('');
   };
 
-  const handleAiEvaluate = async (submission) => {
+  const handleAiEvaluate = (submission) => {
     if (!submission || aiEvaluatingId) return;
     const id = submission.submissionId;
     setAiEvaluatingId(id);
@@ -908,19 +989,17 @@ const AssignmentPortal = ({ view = 'manage', notificationCount = 0, siblingNotif
       setSelected((prev) => (prev && prev.submissionId === id ? { ...prev, ...patch } : prev));
     };
     applyStatus({ aiGradingStatus: 'pending' });
-    try {
-      const { data } = await axios.post(
-        `${API_BASE_URL}/api/assignment/teacher/ai-evaluate`,
-        { studentId: submission.studentId, assignmentId: submission.assignmentId },
-        { headers: { Authorization: `Bearer ${token()}` } }
-      );
-      applyStatus({ aiScore: data.aiScore, aiGradingFeedback: data.aiGradingFeedback, aiGradingStatus: data.aiGradingStatus });
-    } catch (err) {
-      applyStatus({ aiGradingStatus: 'failed' });
-      setAiEvaluateError(err.response?.data?.error || 'AI evaluation failed. Please try again.');
-    } finally {
-      setAiEvaluatingId('');
-    }
+    setTimeout(() => {
+      try {
+        const { aiScore, aiGradingFeedback } = mockGenerateAiEvaluation(submission);
+        applyStatus({ aiScore, aiGradingFeedback, aiGradingStatus: 'done' });
+      } catch {
+        applyStatus({ aiGradingStatus: 'failed' });
+        setAiEvaluateError('AI evaluation failed. Please try again.');
+      } finally {
+        setAiEvaluatingId('');
+      }
+    }, 900 + Math.random() * 500);
   };
 
   const handleSaveRubricAndEvaluate = async (submission) => {

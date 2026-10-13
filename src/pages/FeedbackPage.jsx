@@ -30,36 +30,32 @@ const FeedbackPage = () => {
       alert('You must agree to the Terms & Conditions.');
       return;
     }
+    // This demo build has no backend, so feedback is stored locally and the
+    // submission is simulated with a short delay for a realistic feel.
+    setIsLoading(true);
     try {
-      // In a real app, you would send this to your backend
-      setIsLoading(true);
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/feedback/add`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          role,
-          name,
-          schoolName,
-          phone,
-          email,
-          class: selectedClass,
-          consent: promoConsent,
-          rating,
-          feedback,
-        }),
-      })
-      if (!res.ok) {
-        throw new Error('Failed to submit feedback');
+      const entry = {
+        role,
+        name,
+        schoolName,
+        phone,
+        email,
+        class: selectedClass,
+        consent: promoConsent,
+        rating,
+        feedback,
+        submittedAt: new Date().toISOString(),
+      };
+      await new Promise((resolve) => setTimeout(resolve, 800 + Math.random() * 500));
+      try {
+        const existing = JSON.parse(localStorage.getItem('demo_feedback_submissions') || '[]');
+        existing.push(entry);
+        localStorage.setItem('demo_feedback_submissions', JSON.stringify(existing));
+      } catch {
+        // localStorage unavailable — submission still "succeeds" for the demo.
       }
-      const data = await res.json();
-      console.log(data)
       navigate('./thank-you');
-    } catch (error) {
-      console.error('Error submitting feedback:', error);
-    }
-    finally {
+    } finally {
       setIsLoading(false);
     }
   };

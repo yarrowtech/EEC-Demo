@@ -106,6 +106,43 @@ const masteryClass = (value) => {
   return 'low';
 };
 
+// --- Client-side mock AI path generation ------------------------------------
+// Builds a realistic, varied learning-path node sequence for a student based
+// on subject/focus/mastery, without calling any external API.
+const BLOOM_SEQUENCE = ['remember', 'understand', 'apply', 'apply', 'analyze', 'evaluate'];
+const TIER_SEQUENCE = ['blue', 'blue', 'orange', 'orange', 'purple', 'green'];
+const NODE_TITLE_TEMPLATES = [
+  (focus) => `Introduction to ${focus}`,
+  (focus) => `Core ideas in ${focus}`,
+  (focus) => `Guided ${focus} practice`,
+  (focus) => `Applying ${focus} to real problems`,
+  (focus) => `Independent ${focus} practice`,
+  (focus) => `Analyzing common ${focus} misconceptions`,
+  (focus) => `${focus} mastery assessment`,
+];
+const pickRandom = (list) => list[Math.floor(Math.random() * list.length)];
+
+const generateMockAiNodes = (subject, focus, mastery = []) => {
+  const weakest = [...mastery].sort((a, b) => Number(a[1]) - Number(b[1]))[0]?.[0];
+  const focusLabel = focus || subject || 'this topic';
+  const templates = [...NODE_TITLE_TEMPLATES];
+  const nodeCount = 6;
+  const titles = [];
+  for (let i = 0; i < nodeCount; i += 1) {
+    const template = templates[i] || pickRandom(NODE_TITLE_TEMPLATES);
+    titles.push(template(focusLabel));
+  }
+  if (weakest) {
+    titles[1] = `Strengthening ${weakest.toLowerCase()} through ${focusLabel}`;
+  }
+  return titles.map((title, index) => ({
+    title,
+    bloom: BLOOM_SEQUENCE[index] || 'apply',
+    tier: TIER_SEQUENCE[index] || 'blue',
+    hasLesson: index < 2,
+  }));
+};
+
 const createDraft = (student, subject, focus, pace, notes, aiNodes = null) => {
   const genericBlueprint = [
     [`Introduction to ${focus}`, 'remember', 'blue', true],
@@ -257,25 +294,15 @@ const GenerateAIPathPortal = () => {
     }
     setLoading(true);
     setGenerateError(null);
-    const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`${API_BASE}/api/learning-paths/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({
-          studentId: selectedStudent.id,
-          studentName: selectedStudent.name,
-          subject,
-          focus,
-          pace,
-          notes,
-          gradeLevel: selectedStudent.cls || undefined,
-          mastery: selectedStudent.mastery.map(([name, value]) => ({ name, value })),
-        }),
+      // Mock AI generation: simulate the model "thinking" for a moment, then
+      // build a realistic, varied node sequence entirely on the client.
+      const aiNodes = await new Promise((resolve) => {
+        window.setTimeout(() => {
+          resolve(generateMockAiNodes(subject, focus, selectedStudent.mastery));
+        }, 900 + Math.random() * 500);
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'AI generation failed');
-      setDraft(createDraft(selectedStudent, subject, focus, pace, notes, data.nodes));
+      setDraft(createDraft(selectedStudent, subject, focus, pace, notes, aiNodes));
       setActivityLog((previous) => [`Path generated for ${selectedStudent.name} · ${subject}`, ...previous].slice(0, 6));
       requestAnimationFrame(() => {
         document.getElementById('path-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });

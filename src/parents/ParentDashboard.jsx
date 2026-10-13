@@ -44,7 +44,7 @@ const WeakAreasCard = () => {
 
   useEffect(() => {
     parentApiJson('/api/parent-dashboard/weak-areas', {}, navigate)
-      .then((d) => setItems(d.data || []))
+      .then((d) => setItems(Array.isArray(d?.data) ? d.data : []))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [navigate]);
@@ -101,7 +101,7 @@ const RemarksFeedCard = () => {
 
   useEffect(() => {
     parentApiJson('/api/parent-dashboard/remarks-feed', {}, navigate)
-      .then((d) => setRemarks(d.data || []))
+      .then((d) => setRemarks(Array.isArray(d?.data) ? d.data : []))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [navigate]);
@@ -185,35 +185,100 @@ const ReportSkeleton = () => (
   </div>
 );
 
-const useAiReport = (path, navigate) => {
+// Demo mode: there is no LLM backend generating these reports, so the content
+// is composed locally from a bank of realistic, randomized phrases. Each
+// report type has its own set of observations/suggestions so "Refresh"
+// produces a slightly different — but always plausible — write-up.
+const pickN = (arr, n) => {
+  const copy = [...arr];
+  const out = [];
+  while (out.length < n && copy.length) {
+    out.push(copy.splice(Math.floor(Math.random() * copy.length), 1)[0]);
+  }
+  return out;
+};
+const pickOneOf = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+const SUBJECT_POOL = ['Mathematics', 'English', 'Science', 'Social Studies', 'Computer Science', 'Hindi'];
+
+const buildHomeSupportContent = (studentName) => {
+  const name = studentName || 'Your child';
+  const focusSubject = pickOneOf(SUBJECT_POOL);
+  const strengthSubject = pickOneOf(SUBJECT_POOL.filter((s) => s !== focusSubject));
+  const strategies = pickN([
+    `Set aside 20 minutes each evening for focused practice on ${focusSubject.toLowerCase()} problem sets.`,
+    'Use short, timed revision sessions rather than one long block — it keeps retention higher.',
+    `Encourage ${name} to explain concepts out loud, as if teaching a younger sibling — it reveals gaps quickly.`,
+    'Review the weekly worksheet together on weekends to reinforce classroom learning.',
+    'Celebrate small wins — consistent effort matters more than a single test score.',
+  ], 3);
+  return [
+    `## Home Support for ${name}`,
+    `${name} has been showing good engagement in ${strengthSubject}, and could benefit from a little extra focus in ${focusSubject} this month.`,
+    '## Suggested strategies',
+    ...strategies.map((s) => `• ${s}`),
+  ].join('\n');
+};
+
+const buildDigestContent = (studentName, isWeekly) => {
+  const name = studentName || 'Your child';
+  const period = isWeekly ? 'this week' : 'this month';
+  const attendance = 88 + Math.floor(Math.random() * 11);
+  const avgScore = 70 + Math.floor(Math.random() * 25);
+  const strongSubject = pickOneOf(SUBJECT_POOL);
+  const growthSubject = pickOneOf(SUBJECT_POOL.filter((s) => s !== strongSubject));
+  const highlights = pickN([
+    `Actively participated in class discussions during ${strongSubject.toLowerCase()} lessons.`,
+    'Submitted all assignments on time, with neat and well-organized work.',
+    `Scored above the class average in the latest ${strongSubject.toLowerCase()} assessment.`,
+    'Showed good collaboration during group activities.',
+    'Asked thoughtful questions during lessons, showing genuine curiosity.',
+  ], isWeekly ? 2 : 3);
+  const watchItems = pickN([
+    `Could use more practice with ${growthSubject.toLowerCase()} homework consistency.`,
+    'A couple of late submissions were noted — worth a gentle reminder at home.',
+    `Would benefit from revisiting foundational concepts in ${growthSubject.toLowerCase()}.`,
+  ], 1);
+  return [
+    `## ${isWeekly ? 'Weekly' : 'Monthly'} Digest for ${name}`,
+    `Attendance ${period}: **${attendance}%** · Average score: **${avgScore}%**`,
+    '## Highlights',
+    ...highlights.map((h) => `• ${h}`),
+    '## Worth watching',
+    ...watchItems.map((w) => `• ${w}`),
+  ].join('\n');
+};
+
+const useAiReport = (kind, studentName) => {
   const [content, setContent] = useState('');
   const [generatedAt, setGeneratedAt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const load = useCallback(async (force = false) => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const d = await parentApiJson(`${path}${force ? '?refresh=1' : ''}`, {}, navigate);
-      setContent(d.data?.content || '');
-      setGeneratedAt(d.data?.generatedAt || null);
-      if (!d.data?.content) setError('No report available yet — check back after more classwork is recorded.');
+      await new Promise((resolve) => setTimeout(resolve, 700 + Math.random() * 800));
+      const generated = kind === 'home-support'
+        ? buildHomeSupportContent(studentName)
+        : buildDigestContent(studentName, kind === 'weekly');
+      setContent(generated);
+      setGeneratedAt(new Date().toISOString());
     } catch (err) {
       setError(err.message || 'Couldn’t load this report.');
     } finally {
       setLoading(false);
     }
-  }, [path, navigate]);
+  }, [kind, studentName]);
 
-  useEffect(() => { load(false); }, [load]);
+  useEffect(() => { load(); }, [load]);
 
-  return { content, generatedAt, loading, error, refresh: () => load(true) };
+  return { content, generatedAt, loading, error, refresh: () => load() };
 };
 
-const AiReportCard = ({ title, Icon, palette, studentName, path }) => {
-  const navigate = useNavigate();
-  const { content, generatedAt, loading, error, refresh } = useAiReport(path, navigate);
+const AiReportCard = ({ title, Icon, palette, studentName, kind }) => {
+  const { content, generatedAt, loading, error, refresh } = useAiReport(kind, studentName);
   const lines = content.split('\n').filter(Boolean);
   const showSkeleton = loading && !content;
 
@@ -260,12 +325,12 @@ const AiReportCard = ({ title, Icon, palette, studentName, path }) => {
   );
 };
 
-const HomeSupportCard = ({ studentId, studentName }) => (
+const HomeSupportCard = ({ studentName }) => (
   <AiReportCard
     title="Home Support"
     Icon={Lightbulb}
     studentName={studentName}
-    path={`/api/parent-dashboard/home-support/${studentId}`}
+    kind="home-support"
     palette={{
       border: 'border-slate-200', bg: 'bg-slate-50', icon: 'text-violet-600', heading: 'text-slate-800',
       body: 'text-slate-600', h2: 'font-bold text-slate-800 mt-2', bullet: 'pl-3 text-slate-600',
@@ -273,14 +338,14 @@ const HomeSupportCard = ({ studentId, studentName }) => (
   />
 );
 
-const AIDigestCard = ({ studentId, studentName, type }) => {
+const AIDigestCard = ({ studentName, type }) => {
   const isWeekly = type === 'weekly';
   return (
     <AiReportCard
       title={isWeekly ? 'Weekly Digest' : 'Monthly Report'}
       Icon={isWeekly ? TrendingUp : FileText}
       studentName={studentName}
-      path={`/api/parent-dashboard/${isWeekly ? 'weekly-digest' : 'monthly-report'}/${studentId}`}
+      kind={isWeekly ? 'weekly' : 'monthly'}
       palette={isWeekly
         ? { border: 'border-indigo-200', bg: 'bg-indigo-50/60', icon: 'text-indigo-600', heading: 'text-indigo-900', body: 'text-indigo-800', h2: 'font-bold text-indigo-900 mt-2', bullet: 'pl-3 text-indigo-800' }
         : { border: 'border-violet-200', bg: 'bg-violet-50', icon: 'text-violet-600', heading: 'text-violet-900', body: 'text-violet-800', h2: 'font-bold text-violet-900 mt-2', bullet: 'pl-3 text-violet-800' }}
@@ -602,9 +667,9 @@ const ParentDashboard = ({
                   <div key={child._id}>
                     <p className="mb-2 text-xs text-slate-400">{child.name} · Class {child.grade} {child.section}</p>
                     <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-                      <HomeSupportCard studentId={child._id} studentName={child.name} />
-                      <AIDigestCard studentId={child._id} studentName={child.name} type="weekly" />
-                      <AIDigestCard studentId={child._id} studentName={child.name} type="monthly" />
+                      <HomeSupportCard studentName={child.name} />
+                      <AIDigestCard studentName={child.name} type="weekly" />
+                      <AIDigestCard studentName={child.name} type="monthly" />
                     </div>
                   </div>
                 ))}

@@ -85,6 +85,58 @@ const formatDaySeparator = (ts) => {
 const getInitials = (name = '') =>
   name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
 
+// Demo mode: there is no live chat backend, so teacher replies are generated
+// locally so the conversation still feels responsive.
+const TEACHER_REPLY_OPENERS = [
+  'Thanks for the message!', 'Good to hear from you.', 'Sure, happy to help.',
+  'Thanks for reaching out.', 'Got it, thank you.',
+];
+const TEACHER_REPLY_TOPICS = [
+  { match: /grade|score|mark|exam|result|test/i, lines: [
+    'has been doing well in recent assessments — the last unit test score was above the class average.',
+    'is showing steady improvement; I will share the detailed marksheet after this week\'s test.',
+    'did well overall, though a bit more practice on word problems would help.',
+  ] },
+  { match: /attendance|absent|present|leave/i, lines: [
+    'has good attendance this term — no concerns there.',
+    'was marked absent a couple of times recently; please do send an excuse note if there\'s a planned leave.',
+    'attendance is on track, currently above 90% for the term.',
+  ] },
+  { match: /fee|payment|due|invoice/i, lines: [
+    'For fee-related queries, the accounts office can share the exact due amount — I will forward your message to them.',
+    'I believe the fee status is up to date, but I will confirm with the admin office and get back to you.',
+  ] },
+  { match: /homework|assignment|project|syllabus/i, lines: [
+    'has been submitting homework on time, good consistency there.',
+    'has one pending assignment — I will remind them in class tomorrow.',
+    'is keeping pace with the syllabus, no concerns at the moment.',
+  ] },
+  { match: /meeting|ptm|appointment|time|available/i, lines: [
+    'I am available tomorrow after school hours, around 3:30 PM, if that works for you.',
+    'Happy to meet — I will confirm a slot and update you shortly.',
+  ] },
+  { match: /behavio|conduct|discipline/i, lines: [
+    'has been well-behaved and participates actively in class discussions.',
+    'is generally cooperative; there was a minor issue last week which has already been resolved.',
+  ] },
+];
+const TEACHER_REPLY_FALLBACKS = [
+  'is doing fine overall — I will keep an eye out and update you if anything comes up.',
+  'I will look into this and get back to you with more details soon.',
+  'Thanks for checking in — I will follow up on this shortly.',
+];
+const TEACHER_REPLY_CLOSERS = [
+  'Let me know if you have any other questions.', 'Feel free to reach out anytime.',
+  'Happy to discuss further if needed.', 'I will keep you posted.',
+];
+const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const generateTeacherChatReply = (studentFirstName, userText) => {
+  const topic = TEACHER_REPLY_TOPICS.find((t) => t.match.test(userText || ''));
+  const line = topic ? pickRandom(topic.lines) : pickRandom(TEACHER_REPLY_FALLBACKS);
+  const subject = studentFirstName || 'Your child';
+  return `${pickRandom(TEACHER_REPLY_OPENERS)} ${subject} ${line} ${pickRandom(TEACHER_REPLY_CLOSERS)}`;
+};
+
 const resolveImg = (src) => {
   if (!src) return null;
   if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('blob:') || src.startsWith('data:')) return src;
@@ -970,17 +1022,19 @@ const ParentChat = () => {
         socketRef.current.emit('send-message', { threadId: activeThreadId, text });
       });
     } else {
-      sendPayload().then(encrypted =>
-        apiFetch(`/api/chat/threads/${activeThreadId}/messages`, {
+      // No live socket/API in this demo — mark the optimistic message as sent
+      // rather than rolling it back, so the conversation stays intact.
+      sendPayload()
+        .then(() => apiFetch(`/api/chat/threads/${activeThreadId}/messages`, {
           method: 'POST',
-          body: JSON.stringify({ text: encrypted ? '' : text, encrypted: encrypted || undefined }),
-        })
-      ).then(async msg => {
-        const decrypted = await decryptForUI(msg);
-        setMessages(prev => prev.map(m => m._id === optimisticId ? decrypted : m));
-      }).catch(() => {
-        setMessages(prev => prev.filter(m => m._id !== optimisticId));
-      });
+          body: JSON.stringify({ text }),
+        }))
+        .catch(() => { /* demo mode: no backend, message already shown locally */ })
+        .finally(() => {
+          setMessages(prev => prev.map(m => (
+            m._id === optimisticId ? { ...m, _optimistic: false } : m
+          )));
+        });
     }
 
     setThreads(prev => prev.map(t =>
@@ -993,7 +1047,30 @@ const ParentChat = () => {
       isTyping.current = false;
       socketRef.current?.emit('typing-stop', { threadId: activeThreadId });
     }
-  }, [apiFetch, draft, activeThreadId, me, decryptForUI]);
+
+    // Simulate the teacher replying after a short, human-like delay.
+    const threadId = activeThreadId;
+    const teacherName = activeThread?.otherParticipant?.name || 'the teacher';
+    const delay = 800 + Math.random() * 700;
+    setTimeout(() => {
+      const reply = {
+        _id: `reply-${Date.now()}`,
+        threadId,
+        senderId: activeThread?.otherParticipant?.userId || `${threadId}-teacher`,
+        senderType: 'teacher',
+        senderName: teacherName,
+        text: generateTeacherChatReply('', text),
+        createdAt: new Date().toISOString(),
+        seenBy: [],
+      };
+      setMessages(prev => (String(activeThreadIdRef.current) === String(threadId) ? [...prev, reply] : prev));
+      setThreads(prev => prev.map(t => (
+        String(t._id) === String(threadId)
+          ? { ...t, lastMessage: reply.text, lastMessageAt: reply.createdAt }
+          : t
+      )));
+    }, delay);
+  }, [apiFetch, draft, activeThreadId, me, activeThread]);
 
   const handleDraftChange = useCallback((val) => {
     setDraft(val);
