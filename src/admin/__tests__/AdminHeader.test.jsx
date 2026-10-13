@@ -13,18 +13,6 @@ const AdminHeaderHarness = (props) => {
   return <AdminHeader notificationState={notificationState} {...props} />;
 };
 
-jest.mock('../../hooks/useDesktopNotificationBridge', () => ({
-  useDesktopNotificationBridge: () => ({
-    showPermissionModal: false,
-    pendingCount: 0,
-    syncNotifications: jest.fn(),
-    requestPermissionFromModal: jest.fn(),
-    dismissPermissionModal: jest.fn(),
-  }),
-}));
-
-jest.mock('../../components/DesktopNotificationPermissionModal', () => () => null);
-
 const flush = () => act(() => new Promise((r) => setTimeout(r, 0)));
 
 const NOTIFS = [

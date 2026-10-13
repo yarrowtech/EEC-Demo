@@ -34,8 +34,6 @@ import OverviewPage from './OverviewPage';
 import FacilitiesPage from './FacilitiesPage';
 import ReportsPage from './ReportsPage';
 import CalendarPage from './CalendarPage';
-import { useDesktopNotificationBridge } from '../hooks/useDesktopNotificationBridge';
-import DesktopNotificationPermissionModal from '../components/DesktopNotificationPermissionModal';
 import { notificationId, readModuleSeenState, writeModuleSeenState } from '../utils/moduleNotificationUtils';
 import { getPrincipalModuleNotificationCount, normalizePrincipalPath, resolvePrincipalNotificationPath } from './principalNotificationUtils';
 
@@ -334,22 +332,6 @@ const PrincipalDashboard = () => {
     [notifications, moduleSeenState]
   );
 
-  const {
-    showPermissionModal,
-    pendingCount,
-    syncNotifications,
-    requestPermissionFromModal,
-    dismissPermissionModal,
-  } = useDesktopNotificationBridge({
-    scopeKey: 'principal',
-    resolvePath: resolvePrincipalNotificationPath,
-    appName: 'Principal Portal',
-  });
-
-  useEffect(() => {
-    syncNotifications(notifications);
-  }, [notifications, syncNotifications]);
-
   const recentActivities = useMemo(
     () => (Array.isArray(overview?.recentActivities) ? overview.recentActivities : []).map((item) => ({
       ...item,
@@ -629,12 +611,6 @@ const PrincipalDashboard = () => {
         </main>
       </div>
     </div>
-    <DesktopNotificationPermissionModal
-      open={showPermissionModal}
-      onAllow={requestPermissionFromModal}
-      onLater={dismissPermissionModal}
-      pendingCount={pendingCount}
-    />
     </>
   );
 };

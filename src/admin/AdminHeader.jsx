@@ -13,10 +13,6 @@ import {
   Clock,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import {
-  useDesktopNotificationBridge,
-} from '../hooks/useDesktopNotificationBridge';
-import DesktopNotificationPermissionModal from '../components/DesktopNotificationPermissionModal';
 
 const DESKTOP_SEARCH_LISTBOX_ID = 'admin-header-search-suggestions-desktop';
 const MOBILE_SEARCH_LISTBOX_ID = 'admin-header-search-suggestions-mobile';
@@ -71,22 +67,6 @@ const AdminHeader = ({ adminUser, onOpenMobileSidebar, onLogoutRequest, notifica
     setShowNotifications(nextOpen);
     setShowProfileMenu(false);
   }, [markAllRead, showNotifications, unreadCount]);
-
-  const {
-    showPermissionModal,
-    pendingCount,
-    syncNotifications,
-    requestPermissionFromModal,
-    dismissPermissionModal,
-  } = useDesktopNotificationBridge({
-    scopeKey: 'admin',
-    resolvePath: resolveNotifPath,
-    appName: 'Admin Portal',
-  });
-
-  useEffect(() => {
-    syncNotifications(notifications);
-  }, [notifications, syncNotifications]);
 
   const timeAgo = (val) => {
     if (!val) return '';
@@ -631,13 +611,6 @@ const AdminHeader = ({ adminUser, onOpenMobileSidebar, onLogoutRequest, notifica
           </motion.div>
         </div>
       </motion.header>
-
-      <DesktopNotificationPermissionModal
-        open={showPermissionModal}
-        onAllow={requestPermissionFromModal}
-        onLater={dismissPermissionModal}
-        pendingCount={pendingCount}
-      />
     </>
   );
 };

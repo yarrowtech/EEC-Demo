@@ -71,8 +71,6 @@ import HolidayList from './HolidayList';
 import TeacherAchievements from './TeacherAchievements';
 import TeacherAlcove from './TeacherAlcove';
 import TryoutManagement from '../components/TryoutManagement';
-import { useDesktopNotificationBridge } from '../hooks/useDesktopNotificationBridge';
-import DesktopNotificationPermissionModal from '../components/DesktopNotificationPermissionModal';
 import NotificationPopover from '../components/NotificationPopover';
 import ExamRoutineTable from '../components/ExamRoutineTable';
 import { AUTH_NOTICE, apiFetch, logoutAndRedirect } from '../utils/authSession';
@@ -1756,21 +1754,6 @@ const TeacherPortalShell = () => {
   }, []);
 
   const resolveNotifPath = useCallback(resolveTeacherNotificationPath, []);
-  const {
-    showPermissionModal,
-    pendingCount,
-    syncNotifications,
-    requestPermissionFromModal,
-    dismissPermissionModal,
-  } = useDesktopNotificationBridge({
-    scopeKey: 'teacher',
-    resolvePath: resolveNotifPath,
-    appName: 'Teacher Portal',
-  });
-
-  useEffect(() => {
-    syncNotifications(notificationItems);
-  }, [notificationItems, syncNotifications]);
 
   return (
     <>
@@ -2435,12 +2418,6 @@ const TeacherPortalShell = () => {
         </nav>
       </div>
     </div>
-    <DesktopNotificationPermissionModal
-      open={showPermissionModal}
-      onAllow={requestPermissionFromModal}
-      onLater={dismissPermissionModal}
-      pendingCount={pendingCount}
-    />
     </>
   );
 };

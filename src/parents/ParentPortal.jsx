@@ -28,8 +28,6 @@ import {
   BarChart2,
   CalendarClock,
 } from 'lucide-react';
-import { useDesktopNotificationBridge } from '../hooks/useDesktopNotificationBridge';
-import DesktopNotificationPermissionModal from '../components/DesktopNotificationPermissionModal';
 import { AUTH_NOTICE, apiFetch, logoutAndRedirect } from '../utils/authSession';
 import { useDialog } from './useDialog';
 import './parentPortalDesign.css';
@@ -410,21 +408,6 @@ const ParentPortal = () => {
       if (id) markRead(id);
     });
   }, [currentPath, notifications, resolveNotifPath, markRead]);
-  const {
-    showPermissionModal,
-    pendingCount,
-    syncNotifications,
-    requestPermissionFromModal,
-    dismissPermissionModal,
-  } = useDesktopNotificationBridge({
-    scopeKey: 'parent',
-    resolvePath: resolveNotifPath,
-    appName: 'Parent Portal',
-  });
-
-  useEffect(() => {
-    syncNotifications(notifications);
-  }, [notifications, syncNotifications]);
 
   const formatNotificationMessage = useCallback((message) => {
     if (!message) return '';
@@ -1014,12 +997,6 @@ const ParentPortal = () => {
         )}
       </div>
     </div>
-    <DesktopNotificationPermissionModal
-      open={showPermissionModal}
-      onAllow={requestPermissionFromModal}
-      onLater={dismissPermissionModal}
-      pendingCount={pendingCount}
-    />
     </>
   );
 };

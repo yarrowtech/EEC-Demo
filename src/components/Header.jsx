@@ -12,8 +12,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useStudentDashboard } from './StudentDashboardContext';
-import { useDesktopNotificationBridge } from '../hooks/useDesktopNotificationBridge';
-import DesktopNotificationPermissionModal from './DesktopNotificationPermissionModal';
 import NotificationPopover from './NotificationPopover';
 import { AUTH_NOTICE, logoutAndRedirect } from '../utils/authSession';
 
@@ -82,22 +80,6 @@ const Header = ({ sidebarOpen, setSidebarOpen, onOpenProfile }) => {
     if (type === 'class_note') return '/student/assignments-journal';
     return '/student/home';
   }, []);
-  const {
-    showPermissionModal,
-    pendingCount,
-    syncNotifications,
-    requestPermissionFromModal,
-    dismissPermissionModal,
-  } = useDesktopNotificationBridge({
-    scopeKey: 'student',
-    resolvePath: resolveNotifPath,
-    appName: 'Student Portal',
-  });
-
-  useEffect(() => {
-    syncNotifications(allNotifications);
-  }, [allNotifications, syncNotifications]);
-
   // Toggle one dropdown, close the other
   const toggleNotifications = useCallback(async () => {
     const nextOpen = !showNotifications;
@@ -461,12 +443,6 @@ const Header = ({ sidebarOpen, setSidebarOpen, onOpenProfile }) => {
         </div>
       </div>
     </header>
-    <DesktopNotificationPermissionModal
-      open={showPermissionModal}
-      onAllow={requestPermissionFromModal}
-      onLater={dismissPermissionModal}
-      pendingCount={pendingCount}
-    />
     </>
   );
 };

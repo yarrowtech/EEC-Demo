@@ -120,6 +120,39 @@ const makeNotices = (count = 6) => Array.from({ length: count }, (_, i) => ({
   priority: pick(['normal', 'high', 'low']),
 }));
 
+// Consumed by admin/pages/NoticeManagement.jsx (and NoticeDetail.jsx) via
+// `/api/notifications` — raw array, richer shape than makeNotices() above
+// (category/priority/audience/pin/scoping), scoped to class-0/sec-0-0 for the
+// two class-specific notices so the "Visible to" class/section labels resolve.
+const makeAdminNotices = (count = 16) => Array.from({ length: count }, (_, i) => {
+  const category = pick(['general', 'academic', 'exam', 'events', 'fee', 'transport']);
+  const titleByCategory = {
+    general: 'School Reopens Monday',
+    academic: 'Mid-Term Syllabus Released',
+    exam: 'Exam Hall Ticket Available',
+    events: 'Annual Sports Day',
+    fee: 'Fee Payment Due Reminder',
+    transport: 'Bus Route Change Notice',
+  };
+  const isClassScoped = i % 5 === 0;
+  return {
+    _id: `admin-notice-${i + 1}`,
+    title: `${titleByCategory[category]}${i > 5 ? ` (${i + 1})` : ''}`,
+    message: 'Please check the full notice for complete details. Contact the school office for any queries regarding this update.',
+    type: category === 'exam' ? 'exam' : category === 'fee' ? 'fee' : 'notice',
+    typeLabel: titleByCategory[category],
+    category,
+    priority: pick(['high', 'medium', 'low']),
+    isPinned: i < 2,
+    audience: pick(['All', 'Student', 'Parent', 'Teacher']),
+    classId: isClassScoped ? 'class-0' : null,
+    sectionId: isClassScoped ? 'sec-0-0' : null,
+    createdByType: pick(['admin', 'admin', 'super_admin']),
+    createdByName: 'School Admin',
+    createdAt: new Date(Date.now() - i * 43200000).toISOString(),
+  };
+});
+
 const makeNotifications = (count = 6) => Array.from({ length: count }, (_, i) => ({
   _id: `notif-${i + 1}`,
   id: `notif-${i + 1}`,
@@ -1196,7 +1229,11 @@ const routes = [
   // Raw arrays — most admin screens call `res.json()` and expect the array directly.
   { test: /\/api\/academic\/years/, get: () => [{ _id: 'year-2025-26', name: '2025-2026', isActive: true }] },
   { test: /\/api\/academic\/classes/, get: () => CLASSES.map((c, i) => ({ _id: `class-${i}`, name: c, academicYearId: 'year-2025-26' })) },
-  { test: /\/api\/academic\/sections/, get: () => SECTIONS.map((s, i) => ({ _id: `sec-${i}`, name: s })) },
+  // One row per class x section (with `classId`) — NoticeManagement.jsx,
+  // ReportCardManagement.jsx, ExaminationManagement.jsx etc. all cascade
+  // their section dropdown by filtering `sec.classId === selectedClassId`;
+  // a flat section-name-only list (no classId) never matched anything.
+  { test: /\/api\/academic\/sections/, get: () => CLASSES.slice(0, 4).flatMap((_, ci) => SECTIONS.map((s, si) => ({ _id: `sec-${ci}-${si}`, name: s, classId: `class-${ci}` }))) },
   { test: /\/api\/academic\/subjects/, get: () => SUBJECTS.map((s, i) => ({ _id: `sub-${i}`, name: s })) },
   { test: /\/api\/academic\/buildings|\/api\/academic\/floors|\/api\/academic\/rooms/, get: () => [] },
   { test: /\/api\/admin\/users\/dashboard-stats/, get: adminDashboardStats },
@@ -1379,7 +1416,9 @@ const routes = [
   // Raw array — every consumer (teacher/parent/principal notification bells,
   // MyWorkPortal) does `Array.isArray(data)` directly on the response body.
   { test: /\/api\/notifications\/user|\/api\/notifications\/teacher/, get: () => makeNotifications() },
-  { test: /\/api\/notifications/, get: () => ({ success: true, data: [] }) },
+  // Raw array — NoticeManagement.jsx/NoticeDetail.jsx read `Array.isArray(data)`
+  // directly on the bare `/api/notifications` endpoint (admin notice board).
+  { test: /\/api\/notifications/, get: () => makeAdminNotices() },
   { test: /\/api\/alcove\/posts|notice/i, get: () => ({ success: true, data: makeNotices() }) },
   // Raw shapes — TeacherChat.jsx/ParentChat.jsx/StudentChat.jsx/PrincipalChatPanel.jsx
   // all call `apiFetch` (unwrapped res.json()) and use the body directly, e.g.
